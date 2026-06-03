@@ -184,43 +184,6 @@ def encode_no_special(tokenizer, text):
         return tokenizer.encode(text)
 
 
-def assert_tokenizer_compatible(target_tokenizer, draft_tokenizer):
-    probes = [
-        "test",
-        "pytest --tb=short",
-        "次に実行すべき確認コマンドを1つだけ出してください。",
-        "<turn|>",
-        "<eos>",
-    ]
-
-    for probe in probes:
-        target_ids = encode_no_special(target_tokenizer, probe)
-        draft_ids = encode_no_special(draft_tokenizer, probe)
-
-        if target_ids != draft_ids:
-            raise RuntimeError(
-                "target/draft tokenizer mismatch\n"
-                f"probe={probe!r}\n"
-                f"target={target_ids}\n"
-                f"draft={draft_ids}"
-            )
-
-
-def assert_prompt_compatible(target_tokenizer, draft_tokenizer, target_prompt, draft_prompt):
-    target_ids = target_tokenizer.encode(target_prompt)
-    draft_ids_from_target_prompt = draft_tokenizer.encode(target_prompt)
-    draft_ids_from_draft_prompt = draft_tokenizer.encode(draft_prompt)
-
-    if target_ids != draft_ids_from_target_prompt:
-        raise RuntimeError(
-            "target formatted prompt token ids differ between tokenizers\n"
-            f"target_len={len(target_ids)} draft_len={len(draft_ids_from_target_prompt)}"
-        )
-
-    if target_ids != draft_ids_from_draft_prompt:
-        print("warning: target/draft chat_template differ; using target formatted prompt for both")
-
-
 def prefill_to_last_prompt_token(wrapper_model, lm, tokenizer, formatted_prompt, max_kv_size):
     input_ids = mx.array([tokenizer.encode(formatted_prompt)])
     prompt_cache = make_cache(lm, max_kv_size)
@@ -264,23 +227,6 @@ def bootstrap_after_first_token(wrapper_model, lm, tokenizer, prompt, max_kv_siz
     next_logits = forward_one(lm, first[:, None], cache)
 
     return first, next_logits, cache, prefill_sec
-
-
-def bootstrap_draft_to_target_prefix(draft_model, draft_lm, tokenizer, prompt, first_token, max_kv_size):
-    cur, cache, prefill_sec = prefill_to_last_prompt_token(
-        draft_model,
-        draft_lm,
-        tokenizer,
-        prompt,
-        max_kv_size,
-    )
-
-    _ = forward_one(draft_lm, cur, cache)
-    next_logits = forward_one(draft_lm, first_token[:, None], cache)
-
-    return next_logits, cache, prefill_sec
-
-
 
 
 def full_snapshot(caches):
