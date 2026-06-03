@@ -395,10 +395,13 @@ def commit_tokens_to_cache(lm, prompt_cache, token_ids, dtype):
     if not token_ids:
         return None
 
-    arr = mx.array([token_ids], dtype=dtype)
-    logits = forward_many(lm, arr, prompt_cache)
+    logits = None
+    for tid in token_ids:
+        arr = mx.array([[tid]], dtype=dtype)
+        logits = forward_one(lm, arr, prompt_cache)
+
     eval_cache(prompt_cache)
-    return logits[:, -1, :]
+    return logits
 
 
 
@@ -553,9 +556,13 @@ def run_speculative(
                 accepted += 1
                 cursor += 1
             else:
-                chosen_id = target_id
+                # Do not emit the target replacement inside the template-verify
+                # path. Only the accepted prefix is safe to commit here.
+                # After restore, fall back to target greedy using the unchanged
+                # target_next_logits.
                 mismatch = True
                 rejected += 1
+                break
 
             if chosen_id in stop_ids:
                 reached_stop = True
@@ -566,12 +573,15 @@ def run_speculative(
             if len(out) + len(emitted) >= max_tokens:
                 break
 
-            if mismatch:
-                break
-
         restore_full(target_cache, target_snapshot)
 
         if not emitted:
+            if mismatch:
+                # Candidate failed at the first proposed token.
+                # Disable template drafting and continue with target greedy.
+                candidate_ids = []
+                cursor = 0
+                continue
             break
 
         out.extend(emitted)
