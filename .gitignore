@@ -6,3 +6,6 @@ __pycache__/
 models/
 *.safetensors
 *.gguf
+
+# Generated prompts / local benchmark artifacts
+prompt_100k.txt
