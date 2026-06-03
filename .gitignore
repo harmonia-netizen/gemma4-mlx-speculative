@@ -9,3 +9,16 @@ models/
 
 # Generated prompts / local benchmark artifacts
 prompt_100k.txt
+
+# Temporary experiment scripts
+run_100k_vlm.py
+run_100k_vlm_mtp2.py
+run_100k_vlm_mtp6.py
+run_gemma4_custom_greedy.py
+run_gemma4_custom_spec.py
+run_gemma4_custom_spec_v4_6.py
+run_lm_100k_dense_draft.py
+run_vlm_100k_dense_draft.py
+run_vlm_smoke_dense_draft.py
+run_vlm_smoke_target_only.py
+make_100k_prompt.py
