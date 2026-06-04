@@ -31,23 +31,29 @@ The successful approach shifted away from dual-model setups to a single-model te
 | v13 | Fast path + restore fallback | Speed retained and mismatch safe | Adopted for fallback safety |
 | v14 | Candidate provider | Avoids known bad candidates | Adopted for modularity |
 | v15 | Candidate confidence gating | Practical selection mechanism | Adopted |
-| engine | Reusable experiment runner | Fast, safe, reusable | **Current recommended path** |
+| engine | Reusable experiment runner | Fast, safe, reusable | Baseline decode engine |
+| long_context | Prefill bottleneck analysis | Prefill takes 98% of elapsed time | Identified need for Prefix Cache |
+| prefix_reuse | Prefix Cache snapshot/restore | ~2.9x amortized speedup | Adopted for long contexts |
+| integrated_runtime | Template Draft + Prefix Cache | Combined speedups achieved safely | **Current final architecture prototype** |
+
+## Further Reading
+- [Template Draft Engine Detailed Docs](template-draft-engine.md)
+- [Prefix Cache Reuse Docs](prefix-cache-reuse.md)
+- [Integrated Runtime Prototype & Final Summary](final-summary.md)
 
 ## Current Recommended Command
 ```bash
-.venv/bin/python experiments/benchmark_template_draft_engine.py --case exact_pytest_plan --warmup-runs 2 --runs 10 --draft-block-size 8 --template-min-tokens 1
+.venv/bin/python experiments/benchmark_template_draft_runtime.py --repeat-lines 500 --runs 1 --max-tokens 128 --draft-block-size 8 --template-min-tokens 1
 ```
 
 ## Current Limitations
 - Speedup depends heavily on candidate quality and exactness.
-- Only deterministic/template candidates are explored currently.
-- Candidate registry is still hardcoded in the engine.
-- No package/API is available yet.
-- Prompt coverage is relatively small.
+- Cache memory management (LRU, Session scopes) is still unimplemented.
+- Candidate registry is still hardcoded.
+- Prototype code is not yet packaged into an importable library.
 
 ## Next Steps
-- External candidate registry implementation.
-- Expand to more real agent output templates.
-- Confidence scoring via an automated prompt classifier.
-- Package/API cleanup and abstraction.
-- Benchmark on more diverse prompts and longer outputs.
+- Implement `PrefixCacheManager` LRU and Session state management.
+- Externalize `CandidateRegistry` to configuration files (JSON/YAML).
+- Package the prototype into an easy-to-use API.
+- Multi-turn benchmark integration for continuous agent flows.

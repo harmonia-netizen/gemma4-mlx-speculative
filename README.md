@@ -19,13 +19,26 @@ For workflows where candidates are uncertain or mismatch (e.g. `medium_pytest_pl
 - The engine defaults back to greedy generation, incurring negligible overhead (greedy-equivalent speed).
 - Token match remains 100% accurate.
 
+## Current Architecture
+
+The project has evolved into a combined **Runtime Prototype** composed of:
+1. **CandidateRegistry**: Manages predictable prompt patterns and template candidates.
+2. **PrefixCacheManager**: Hashes, caches, and instantly restores the KV cache for long shared context prefixes.
+3. **TemplateDraftRuntime**: Orchestrates the prefix restore, suffix prefill, candidate proposal, target verification, and fallback lifecycle.
+
+## Main Results
+
+- **Exact Output Decode**: ~**2.2x** speedup (Template Draft Engine).
+- **Long Context Prefix Reuse**: ~**2.9x** overall amortized speedup for ~15k token sequences across multiple generated suffixes.
+- **Integrated Runtime Prototype**: Successfully unified Prefix Cache Reuse and Template Draft, maintaining 100% token match while delivering combined prefill and decode accelerations.
+
 ## Why not small-model draft?
 
 Initial experiments with a 4B draft model successfully maintained correctness. However, the overhead of loading and running the draft model for short command generation outweighed its benefits. 
 
 The deterministic/template candidate + target verification approach proved far more promising for this specific local-agent use case, avoiding draft model overhead entirely while accelerating highly predictable text.
 
-## How it works
+## How Template Draft works
 
 1. **Candidate provider** proposes deterministic template candidates based on the prompt.
 2. **Confidence / min_tokens gating** filters out low-probability candidates.
@@ -35,22 +48,23 @@ The deterministic/template candidate + target verification approach proved far m
 6. The resulting token sequence is guaranteed to perfectly match the target greedy output.
 
 ## Key Files
-- `experiments/template_draft_engine.py`: The core speculative engine implementation.
-- `experiments/benchmark_template_draft_engine.py`: The benchmark suite.
+- `experiments/template_draft_runtime.py`: The final integrated runtime prototype combining Prefix Reuse and Template Draft.
+- `experiments/benchmark_template_draft_runtime.py`: The benchmark suite for the runtime.
+- `docs/experiments/final-summary.md`: The final architectural overview and results.
+- `experiments/template_draft_engine.py`: The underlying speculative engine implementation.
 - `docs/experiments/summary.md`: Historical progression of the experiments.
-- `docs/experiments/template-draft-engine.md`: Detailed engine documentation.
 
 ## Quick Start
 
-Run the fast-path template draft benchmark:
+Run the combined Prefix Reuse + Template Draft Runtime benchmark (15k context):
 ```bash
 cd ~/mlx
-.venv/bin/python experiments/benchmark_template_draft_engine.py --case exact_pytest_plan --warmup-runs 2 --runs 10 --draft-block-size 8 --template-min-tokens 1
+.venv/bin/python experiments/benchmark_template_draft_runtime.py --repeat-lines 500 --runs 1 --max-tokens 128 --draft-block-size 8 --template-min-tokens 1
 ```
 
-Run the full benchmark suite:
+Run the standalone fast-path template draft benchmark:
 ```bash
-.venv/bin/python experiments/benchmark_template_draft_engine.py --warmup-runs 1 --runs 3 --draft-block-size 8 --template-min-tokens 16
+.venv/bin/python experiments/benchmark_template_draft_engine.py --case exact_pytest_plan --warmup-runs 2 --runs 10 --draft-block-size 8 --template-min-tokens 1
 ```
 
 ## Status
