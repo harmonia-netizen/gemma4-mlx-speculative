@@ -69,3 +69,7 @@ Run the standalone fast-path template draft benchmark:
 
 ## Status
 Research prototype / experiment. Not yet a packaged library.
+
+## License
+
+Apache License 2.0. See [LICENSE](LICENSE).
