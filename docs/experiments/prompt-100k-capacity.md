@@ -30,7 +30,7 @@
 ### 3. Prefill Snapshot Mode
 - **結果**: 正常終了 (OOM なし)
 - **Snapshot Time**: **0.000秒**
-- **考察**: `engine.full_snapshot()` は MX Array の Python オブジェクト参照リストを複製するだけであり、実メモリ領域（数十 GB の KV キャッシュ）の Duplicate Copy を発生させない。そのため、Snapshot を保持することによる追加のメモリペナルティは実質的にゼロであり、100K トークンにおいても一瞬で状態を退避できることが証明された。
+- **考察**: 100K prefill後に snapshot object を作成しても、追加の大きなメモリ確保は発生しませんでした。ただし、このmodeではrestore correctnessまでは検証していないため、100Kでのrestore安全性は別途restore probeが必要です。
 
 ### 4. Greedy Decode Mode
 - **結果**: 正常終了 (OOM なし)
@@ -41,5 +41,5 @@
 
 ## 制限と今後の方針 (Safe Limit)
 - **Prefill 時間の壁**: M2/M3 等の Apple Silicon 環境において、100K の Prefill は約 5 分を要する。これは対話型エージェントのレスポンスとしては実用的ではない。
-- **Prefix Cache Reuse の必然性**: この結果は「Prefix Cache Reuse 機構」がいかに不可欠であるかを物語っている。1度 5分 かけて Prefill を行えば、以降のターン（数百〜数千回のプロンプト送信）は Snapshot のリストアにより一瞬で 100K 状態から再開できる。
+- **Prefix Cache Reuse の必然性**: この結果は「Prefix Cache Reuse 機構」がいかに不可欠であるかを物語っている。1度 5分 かけて Prefill を行った後に同一prefixを再利用できる可能性はあるが、100K状態でのrestore correctnessと長時間運用時のメモリ管理は別途検証が必要である。
 - **Safe Token Limit**: 現状の MLX / Gemma 4 の 8-bit 量子化モデルにおいて、100K は処理可能であるものの、実行ハードウェアの物理メモリ (64GB〜128GB) によっては Swapping が発生し、著しい速度低下を招く。当面の推奨上限 (`safe-token-limit`) は 120,000 トークン程度とする。
