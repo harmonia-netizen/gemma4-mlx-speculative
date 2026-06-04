@@ -409,6 +409,9 @@ pytest --tb=short
 git diff
 ```"""
 
+    if "短い失敗ログを確認したい" in p and "出力は `pytest --tb=short` だけ" in p:
+        return "`pytest --tb=short`"
+
     if "pytest" in p and ("failed" in p or "失敗" in p):
         return "`pytest --tb=short`"
 
