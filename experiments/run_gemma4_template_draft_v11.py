@@ -409,6 +409,13 @@ pytest --tb=short
 git diff
 ```"""
 
+    if "次の確認手順をbashブロックだけで出してください。" in p and "1. git status --short" in p:
+        return """```bash
+git status --short
+pytest --tb=short
+git diff
+```"""
+
     if "短い失敗ログを確認したい" in p and "出力は `pytest --tb=short` だけ" in p:
         return "`pytest --tb=short`"
 
