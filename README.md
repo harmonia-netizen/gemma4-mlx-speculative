@@ -12,10 +12,17 @@ You can import the runtime components via the experimental package entrypoint:
 from gemma4_mlx_runtime import SessionCacheAPI, get_memory_stats
 
 # MLX Backend (Default: Template Draft + Prefix/Session cache + snapshot/restore)
+# By default, this uses the shared experiments/template_candidates.json
 api_mlx = SessionCacheAPI.load("mlx-community/gemma-4-26b-a4b-it-8bit", backend="mlx")
 
 # GGUF / llama.cpp Backend
-api_gguf = SessionCacheAPI.load("/path/to/model.gguf", backend="llama_cpp")
+# NOTE: For Qwen GGUF, you MUST specify the dedicated template candidate JSON to achieve successful Template Draft acceleration.
+# This ensures that GGUF-specific tokens/rules do not pollute the shared MLX candidates.
+api_gguf = SessionCacheAPI.load(
+    model_path="/path/to/Qwen3.6-35B-A3B-Claude-4.7-Opus-abliterated-ggml-model-Q4_K.gguf",
+    candidate_json_path="experiments/template_candidates_gguf_qwen.json",
+    backend="llama_cpp"
+)
 
 stats = get_memory_stats()
 ```

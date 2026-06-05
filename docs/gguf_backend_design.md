@@ -18,16 +18,32 @@ The GGUF backend avoids the massive overhead of complete state duplication for i
 - **Mismatch Resolution:** If a prediction mismatch occurs during candidate validation, the system rolls back `self.llm.n_tokens` to its pre-block length and invokes `self.llm._ctx.kv_cache_seq_rm(-1, rollback_n_tokens, -1)` to explicitly delete the discarded branch from the C++ KV Cache.
 - **Performance Gain:** Using `save_state()` / `load_state()` per block resulted in heavy slowdowns (`decode_speedup <= 1.0x`) due to the continuous serialization and memory copying of the multi-gigabyte Llama context. Utilizing `kv_cache_seq_rm` achieves decode speedups of >2.0x.
 
-## 4. Constraints and Usage
-- **Greedy Only:** The current Template Draft loop and custom sampling logic strictly assume a greedy sampling strategy. Supporting `temperature` or `top-p` requires additional rollback implementations for exact match verification.
-- **Isolated Candidates:** GGUF/Qwen-specific drafting candidates must be strictly isolated to `experiments/template_candidates_gguf_qwen.json` to prevent corrupting the generalized MLX ruleset.
-- **Entrypoint:** For practical app usage, initialize the backend as follows:
-  ```python
-  from gemma4_mlx_runtime import SessionCacheAPI
-  
-  api = SessionCacheAPI.load(
-      model_path="/path/to/gguf/model.gguf",
-      candidate_json_path="experiments/template_candidates_gguf_qwen.json",
-      backend="llama_cpp"
-  )
-  ```
+## 4. Limitations
+- **Greedy Only:** The current Template Draft loop and custom sampling logic strictly assume a greedy sampling strategy. Non-greedy sampling (`temperature`, `top-p`, etc.) is out of scope and explicitly not supported.
+- **Rollback Dependency:** Rollback operations absolutely depend on `kv_cache_seq_rm` and `n_tokens` resetting.
+- **API Choice:** `create_completion` is bypassed entirely in favor of the low-level `eval` and `sample` loop to ensure exact token-level rollback and caching guarantees.
+- **Isolated Candidates:** GGUF/Qwen-specific drafting candidates must be strictly isolated to `experiments/template_candidates_gguf_qwen.json` to prevent corrupting the generalized MLX ruleset. Other GGUF models will require their own dedicated candidate JSON files and verification benchmarks.
+
+## 5. Quick Checks
+
+For short, localized verification of the GGUF backend, the following commands can be executed. These check prefix acceleration, exact rollback, and template drafting without running the full comprehensive test suite.
+
+```bash
+# 1. Basic Backend Benchmark
+PYTHONPATH=. .venv/bin/python experiments/benchmark_llama_cpp_backend.py --json
+
+# 2. State Restore Benchmark
+PYTHONPATH=. .venv/bin/python experiments/benchmark_llama_cpp_state_restore.py --json
+
+# 3. Template Draft Benchmark
+PYTHONPATH=. .venv/bin/python experiments/benchmark_llama_cpp_template_draft.py \
+  --model "$HOME/Documents/Qwen3.6-35B-A3B-Claude-4.7-Opus-abliterated-ggml-model-Q4_K.gguf" \
+  --n-ctx 2048 \
+  --n-gpu-layers -1 \
+  --repeat-lines 20 \
+  --max-tokens 128 \
+  --draft-block-size 8 \
+  --template-min-tokens 1 \
+  --runs 1 \
+  --json | python -c 'import sys,json; d=json.load(sys.stdin); r=d["runs"][0]; print("ok:", d["ok"], "| token_match:", d["token_match"], "| draft_enabled:", d["template_draft_enabled"], "| accepted:", r["C_accepted"], "| drafted:", r["C_drafted"], "| rejected:", r["C_rejected"], "| mismatch_match:", r["mismatch_token_match"], "| decode_speedup:", r["C_vs_B_decode_speedup"])'
+```
