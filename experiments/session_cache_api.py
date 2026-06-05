@@ -89,9 +89,8 @@ class SessionCacheAPI:
             "error": res.error
         }
 
-    def clear_session(self, session_id: str) -> dict:
-        self.runtime.clear_session(session_id)
-        return {"ok": True, "session_id": session_id}
+    def clear_session(self, session_id: str, drop_cache: bool = False) -> dict:
+        return self.runtime.clear_session(session_id, drop_cache=drop_cache)
 
     def stats(self) -> dict:
         s = self.runtime.stats()
@@ -100,5 +99,6 @@ class SessionCacheAPI:
             "current_total_tokens": s.current_total_tokens,
             "max_entries": s.max_entries,
             "max_total_tokens": s.max_total_tokens,
-            "keys": s.keys
+            "keys": s.keys,
+            "sessions": len(self.runtime.sessions)
         }

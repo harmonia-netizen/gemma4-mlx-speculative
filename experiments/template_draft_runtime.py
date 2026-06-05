@@ -84,6 +84,13 @@ class PrefixCacheManager:
             evicted.append(oldest_key)
         return evicted
 
+    def remove(self, key: str) -> bool:
+        if key in self.entries:
+            entry = self.entries.pop(key)
+            self.current_total_tokens -= len(entry.token_ids)
+            return True
+        return False
+
 
 @dataclass
 class GuardResult:
@@ -132,22 +139,42 @@ class CandidateRegistry:
             any_kws = item.get("any_keywords", [])
             neg = item.get("negative_keywords", [])
             thresh = item.get("score_threshold", 1.0)
+            req_any_groups = item.get("required_any_groups", [])
             
             self.entries.append({
                 "candidate": c,
                 "required_keywords": [k.lower() for k in req],
                 "any_keywords": [k.lower() for k in any_kws],
                 "negative_keywords": [k.lower() for k in neg],
+                "required_any_groups": [[k.lower() for k in group] for group in req_any_groups],
                 "score_threshold": thresh
             })
 
     def get_candidates(self, user_prompt: str) -> List[Dict[str, Any]]:
         p = user_prompt.lower()
         matched = []
+        
+        global_neg = ["commit", "push", "reset", "clean", "rm", "kill", "delete", "remove"]
+        has_global_neg = any(kw in p for kw in global_neg)
+        
         for entry in self.entries:
+            c = entry["candidate"]
+            
+            # Destructive checks
+            if has_global_neg and c.confidence >= 0.8:
+                continue
+                
             if not all(kw in p for kw in entry["required_keywords"]):
                 continue
             if any(kw in p for kw in entry["negative_keywords"]):
+                continue
+                
+            group_failed = False
+            for group in entry["required_any_groups"]:
+                if not any(kw in p for kw in group):
+                    group_failed = True
+                    break
+            if group_failed:
                 continue
                 
             any_match_count = sum(1 for kw in entry["any_keywords"] if kw in p)

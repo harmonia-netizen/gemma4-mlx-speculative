@@ -1,79 +1,47 @@
-# gemma4-mlx-speculative: Gemma 4 MLX Template Draft Experiments
+# gemma4-mlx-speculative: Gemma 4 MLX Template Draft & Session Cache Runtime
 
-Experimental repository for local inference acceleration on Apple Silicon / MLX with Gemma 4 models.
+This repository contains an experimental runtime for local inference acceleration on Apple Silicon / MLX with Gemma 4 models. It explores an alternative approach to speculative decoding using deterministic templates and prefix caching.
 
-## What this is
+## Core Features
 
-This project explores an alternative approach to speculative decoding for MLX / Gemma 4. Instead of using a smaller draft model (which incurred high overhead), this project verifies deterministic "template candidates" against the target model in a single batch. When the output exactly matches the candidate template, the engine adopts the fast path, resulting in significant speedups for highly predictable outputs (like fixed bash commands).
+This project focuses on three main architectural directions:
 
-## Current Result
+1. **Template Candidate + Target Verification**: Instead of using a smaller draft model (which incurred high overhead), this runtime uses predefined "template candidates" (e.g., fixed bash commands). The engine verifies these candidates against the target model in a single batch, providing significant speedups for highly predictable outputs.
+2. **Prefix / Session Cache Reuse**: Evaluates and caches long shared context prefixes (KV cache). The engine can restore this snapshot for subsequent multi-turn requests, reducing repeated prefill work.
+3. **Long Input Guard**: Built-in capacity guard that monitors and restricts prompt lengths to prevent out-of-memory (OOM) crashes on Apple Silicon.
 
-For workflows where deterministic templates match the target greedy output (e.g. `exact_pytest_plan`):
-- Target greedy `decode_sec`: ~0.42s
-- Template draft engine `decode_sec`: ~0.19s
-- **Speedup**: ~2.2x
-- **Accepted**: 100%
+*Note: MTP (Multi-Token Prediction) and small-model lightweight drafts were explored but are not adopted in the current iteration.*
 
-For workflows where candidates are uncertain or mismatch (e.g. `medium_pytest_plan`):
-- The `candidate gating` system filters out bad candidates.
-- The engine defaults back to greedy generation, incurring negligible overhead (greedy-equivalent speed).
-- Token match remains 100% accurate.
+## 100K Token Handling
 
-## Current Architecture
+- **Chunked Prefill**: Validated that target-only chunked prefill completed for a 100K-token context under the tested conditions.
+- **Full Baseline Comparisons Excluded**: Running full sequential A/B/C baseline comparisons at 100K causes extreme memory swapping and is not recommended.
+- **Practical Usage**: Real-world operations with 100K+ context lengths must rely solely on the **Prefix Cache Reuse** path.
 
-The project has evolved into a combined **Runtime Prototype** composed of:
-1. **CandidateRegistry**: Manages predictable prompt patterns and template candidates.
-2. **PrefixCacheManager**: Hashes, caches, and instantly restores the KV cache for long shared context prefixes.
-3. **TemplateDraftRuntime**: Orchestrates the prefix restore, suffix prefill, candidate proposal, target verification, and fallback lifecycle.
+## Quick Start & Verification
 
-## Main Results
-
-- **Exact Output Decode**: ~**2.2x** speedup (Template Draft Engine).
-- **Long Context Prefix Reuse**: ~**2.9x** overall amortized speedup for ~15k token sequences across multiple generated suffixes.
-- **Integrated Runtime Prototype**: Successfully unified Prefix Cache Reuse and Template Draft, maintaining 100% token match while delivering combined prefill and decode accelerations.
-- **100K Token Handling**: 
-  - Validated that **target-only chunked prefill** safely handles 100K contexts without OOM.
-  - Demonstrated that cache **Snapshot & Restore** remains completely safe and exact (100% token match) even at 100K tokens, with snapshot operations taking virtually `0.000s`.
-  - Discovered that running full sequential A/B/C baseline comparisons at 100K causes extreme memory swapping. Consequently, **practical deployments must rely solely on the Prefix Cache Reuse path** for long contexts.
-  - Verified via `prompt_100k_reuse_path_probe.py` that the **Reuse Path** (snapshot restore + template draft) correctly processes suffix queries in ~2.6 seconds, confirming its viability for 100K real-world agent interactions.
-
-## Why not small-model draft?
-
-Initial experiments with a 4B draft model successfully maintained correctness. However, the overhead of loading and running the draft model for short command generation outweighed its benefits. 
-
-The deterministic/template candidate + target verification approach proved far more promising for this specific local-agent use case, avoiding draft model overhead entirely while accelerating highly predictable text.
-
-## How Template Draft works
-
-1. **Candidate provider** proposes deterministic template candidates based on the prompt.
-2. **Confidence / min_tokens gating** filters out low-probability candidates.
-3. The engine uses the target model's `forward_many` to verify the candidate sequence in one pass.
-4. **If exactly matched**, the engine retains the advanced cache state and skips token-by-token generation.
-5. **If mismatched**, the engine triggers a snapshot `restore_full` to roll back the cache and falls back to greedy generation.
-6. The resulting token sequence is guaranteed to perfectly match the target greedy output.
-
-## Key Files
-- `experiments/template_draft_runtime.py`: The final integrated runtime prototype combining Prefix Reuse and Template Draft.
-- `experiments/benchmark_template_draft_runtime.py`: The benchmark suite for the runtime.
-- `docs/experiments/final-summary.md`: The final architectural overview and results.
-- `experiments/template_draft_engine.py`: The underlying speculative engine implementation.
-- `docs/experiments/summary.md`: Historical progression of the experiments.
-
-## Quick Start
-
-Run the combined Prefix Reuse + Template Draft Runtime benchmark (15k context):
+**1. Run full completion checks and tests:**
 ```bash
-cd ~/mlx
-.venv/bin/python experiments/benchmark_template_draft_runtime.py --repeat-lines 500 --runs 1 --max-tokens 128 --draft-block-size 8 --template-min-tokens 1
+python experiments/run_completion_checks.py
 ```
 
-Run the standalone fast-path template draft benchmark:
+**2. Run the Template Draft & Session Cache benchmark:**
 ```bash
-.venv/bin/python experiments/benchmark_template_draft_engine.py --case exact_pytest_plan --warmup-runs 2 --runs 10 --draft-block-size 8 --template-min-tokens 1
+python experiments/benchmark_template_draft_runtime.py \
+  --repeat-lines 500 \
+  --runs 1 \
+  --max-tokens 128 \
+  --draft-block-size 8 \
+  --template-min-tokens 1
 ```
 
-## Status
-Research prototype / experiment. Not yet a packaged library.
+**3. Run the Long Input Guard probe (100K Example):**
+```bash
+python experiments/session_100k_probe.py \
+  --target-tokens 100000 \
+  --safe-token-limit 32000 \
+  --max-tokens 16
+```
 
 ## License
 

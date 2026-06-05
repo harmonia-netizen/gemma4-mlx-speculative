@@ -15,7 +15,8 @@ from session_cache_runtime import SessionCacheRuntime
 from template_draft_runtime import (
     PrefixCacheManager,
     LongInputGuard,
-    CandidateRegistry
+    CandidateRegistry,
+    GuardResult
 )
 from session_cache_memory import (
     get_memory_stats,
@@ -35,5 +36,6 @@ __all__ = [
     "SessionState",
     "get_memory_stats",
     "format_memory_stats",
-    "MemoryStats"
+    "MemoryStats",
+    "GuardResult"
 ]

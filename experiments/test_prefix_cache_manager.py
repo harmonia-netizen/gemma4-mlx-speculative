@@ -56,8 +56,25 @@ def test_single_prefix_exceeds_limit():
         assert "exceeds max_total_tokens" in str(e)
     print("  OK")
 
+def test_remove_key():
+    print("test_remove_key...")
+    manager = PrefixCacheManager(max_entries=10, max_total_tokens=100)
+    add_entry_for_test(manager, "key1", 60, time.time() - 10)
+    assert manager.current_total_tokens == 60
+    
+    res = manager.remove("key1")
+    assert res is True
+    assert "key1" not in manager.entries
+    assert manager.current_total_tokens == 0
+    
+    res_unknown = manager.remove("unknown")
+    assert res_unknown is False
+    assert manager.current_total_tokens == 0
+    print("  OK")
+
 if __name__ == "__main__":
     test_eviction_max_entries()
     test_eviction_max_total_tokens()
     test_single_prefix_exceeds_limit()
+    test_remove_key()
     print("All tests passed.")

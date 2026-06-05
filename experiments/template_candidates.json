@@ -21,7 +21,7 @@
   {
     "name": "git_status_short",
     "required_keywords": [],
-    "any_keywords": ["git status", "status", "作業ツリー", "状態"],
+    "any_keywords": ["git status", "status --short", "作業ツリー", "状態確認"],
     "negative_keywords": ["commit", "push", "reset", "clean", "rm"],
     "score_threshold": 1.0,
     "text": "```bash\ngit status --short\n```",
@@ -51,9 +51,13 @@
   {
     "name": "safe_runtime_check_plan",
     "required_keywords": [],
-    "any_keywords": ["安全", "確認", "check", "pytest", "diff", "status", "compile"],
+    "required_any_groups": [
+      ["安全", "safe"],
+      ["確認", "check", "status", "diff", "compile", "ls", "pwd"]
+    ],
+    "any_keywords": ["安全", "safe", "確認", "check", "status", "diff", "compile"],
     "negative_keywords": ["commit", "push", "reset", "clean", "rm", "delete"],
-    "score_threshold": 3.0,
+    "score_threshold": 2.0,
     "text": "```bash\ngit status --short\ngit diff --stat\npython -m py_compile experiments/template_draft_runtime.py experiments/session_cache_runtime.py experiments/session_cache_api.py\n```",
     "confidence": 0.90,
     "min_tokens": 8,

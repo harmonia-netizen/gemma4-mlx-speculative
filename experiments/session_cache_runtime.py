@@ -205,9 +205,29 @@ class SessionCacheRuntime:
         elapsed = time.perf_counter() - total_start
         return SessionGenerateResult(True, session_id, engine.decode_text(self.tokenizer, out), out, len(suffix_ids), prefill_sec, decode_sec, elapsed, accepted, drafted, rejected, candidate_name, fallback_used, None)
 
-    def clear_session(self, session_id: str):
+    def clear_session(self, session_id: str, drop_cache: bool = False) -> dict:
+        result = {
+            "ok": False,
+            "session_id": session_id,
+            "dropped_cache": False,
+            "cache_key": None,
+            "error": None
+        }
+        
         if session_id in self.sessions:
+            session = self.sessions[session_id]
+            prefix_key = session.prefix_key
             del self.sessions[session_id]
+            result["ok"] = True
+            
+            if drop_cache:
+                result["cache_key"] = prefix_key
+                if self.prefix_manager.remove(prefix_key):
+                    result["dropped_cache"] = True
+        else:
+            result["error"] = f"Session {session_id} not found"
+            
+        return result
 
     def stats(self) -> CacheStats:
         return CacheStats(
