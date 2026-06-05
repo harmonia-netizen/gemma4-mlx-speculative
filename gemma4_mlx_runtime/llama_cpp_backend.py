@@ -49,7 +49,7 @@ class LlamaCppBackend(BaseInferenceBackend):
             ],
             notes=[
                 "GGUF backend via llama-cpp-python.",
-                "Prefix cache reuse and exact KV snapshot restore are supported via low-level eval/sample and save_state/load_state.",
+                "Prefix cache reuse is supported via low-level eval/sample and prefix save_state; Template Draft rollback uses lightweight kv_cache_seq_rm plus n_tokens rollback.",
                 "Template verification is fully supported."
             ]
         )
@@ -132,7 +132,7 @@ class LlamaCppBackend(BaseInferenceBackend):
             return []
             
         t1 = time.perf_counter()
-        block_state = self.llm.save_state()
+        rollback_n_tokens = self.llm.n_tokens
         metrics["C_save_state_sec"] += time.perf_counter() - t1
         
         t2 = time.perf_counter()
@@ -144,7 +144,9 @@ class LlamaCppBackend(BaseInferenceBackend):
             if pred != block[i+1]:
                 if trace: print(f"trace: mismatch inside block at i={i}: pred={pred} block[{i+1}]={block[i+1]}")
                 t3 = time.perf_counter()
-                self.llm.load_state(block_state)
+                self.llm.n_tokens = rollback_n_tokens
+                if hasattr(self.llm._ctx, "kv_cache_seq_rm"):
+                    self.llm._ctx.kv_cache_seq_rm(-1, rollback_n_tokens, -1)
                 metrics["C_load_state_sec"] += time.perf_counter() - t3
                 accepted_tokens = block[:i+1]
                 t4 = time.perf_counter()
