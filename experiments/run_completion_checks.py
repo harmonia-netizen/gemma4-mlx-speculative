@@ -18,9 +18,10 @@ def run_cmd(cmd: str):
 def main():
     commands = [
         # 1. Compile checks
-        ".venv/bin/python -m py_compile gemma4_mlx_runtime/__init__.py gemma4_mlx_runtime/session_cache.py gemma4_mlx_runtime/memory.py gemma4_mlx_runtime/candidates.py gemma4_mlx_runtime/package_info.py gemma4_mlx_runtime/backends.py gemma4_mlx_runtime/mlx_backend.py gemma4_mlx_runtime/llama_cpp_backend.py experiments/template_draft_runtime.py experiments/session_cache_runtime.py experiments/session_cache_api.py experiments/session_cache_core.py experiments/session_cache_memory.py experiments/session_cache_package.py experiments/agent_mock_runtime.py experiments/test_memory_stats.py experiments/benchmark_memory_stats.py experiments/benchmark_llama_cpp_backend.py experiments/benchmark_llama_cpp_multiturn.py experiments/benchmark_llama_cpp_prefix_reuse.py experiments/benchmark_llama_cpp_state_restore.py experiments/benchmark_llama_cpp_template_draft.py experiments/test_backend_interface.py experiments/test_llama_cpp_backend_light.py",
+        ".venv/bin/python -m py_compile gemma4_mlx_runtime/__init__.py gemma4_mlx_runtime/session_cache.py gemma4_mlx_runtime/memory.py gemma4_mlx_runtime/candidates.py gemma4_mlx_runtime/package_info.py gemma4_mlx_runtime/backends.py gemma4_mlx_runtime/mlx_backend.py gemma4_mlx_runtime/llama_cpp_backend.py gemma4_mlx_runtime/cli.py experiments/template_draft_runtime.py experiments/session_cache_runtime.py experiments/session_cache_api.py experiments/session_cache_core.py experiments/session_cache_memory.py experiments/session_cache_package.py experiments/agent_mock_runtime.py experiments/test_memory_stats.py experiments/benchmark_memory_stats.py experiments/benchmark_llama_cpp_backend.py experiments/benchmark_llama_cpp_multiturn.py experiments/benchmark_llama_cpp_prefix_reuse.py experiments/benchmark_llama_cpp_state_restore.py experiments/benchmark_llama_cpp_template_draft.py experiments/test_backend_interface.py experiments/test_llama_cpp_backend_light.py experiments/test_cli_args.py",
         
         # 2. Unit tests
+        ".venv/bin/python experiments/test_cli_args.py",
         ".venv/bin/python experiments/test_prefix_cache_manager.py",
         ".venv/bin/python experiments/test_candidate_registry.py",
         ".venv/bin/python experiments/test_session_cache_api.py",
