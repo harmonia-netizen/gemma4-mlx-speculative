@@ -1,5 +1,28 @@
 [
   {
+    "name": "exact_pytest_plan_qwen",
+    "required_keywords": [
+      "pytest",
+      "git diff",
+      "git status",
+      "3行"
+    ],
+    "any_keywords": [
+      "確認手順",
+      "bash",
+      "tb=short"
+    ],
+    "text": "```bash\ngit status --short && pytest --tb=short && git diff\n```",
+    "confidence": 0.99,
+    "min_tokens": 15,
+    "tags": [
+      "exact",
+      "bash",
+      "pytest",
+      "qwen"
+    ]
+  },
+  {
     "name": "exact_pytest_plan",
     "required_keywords": [
       "pytest",

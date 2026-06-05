@@ -19,7 +19,7 @@ git diff
 3行で出して"""
     c = registry.select_candidate(user_prompt, tokenizer, min_tokens=1)
     assert c is not None
-    assert c.name == "exact_pytest_plan", f"Expected exact_pytest_plan, got {c.name}"
+    assert c.name in ["exact_pytest_plan", "exact_pytest_plan_qwen"], f"Expected exact_pytest_plan, got {c.name}"
 
     # 2. git status (case insensitive test)
     user_prompt_git = "作業ツリーの状態を確認するため、GIT STATUS を実行"

@@ -40,7 +40,8 @@ class SessionCacheAPI:
                 n_threads=n_threads,
                 seed=seed,
                 verbose=verbose,
-                chat_format=chat_format
+                chat_format=chat_format,
+                candidate_json_path=candidate_json_path
             )
         else:
             raise ValueError(f"Unknown backend: {backend}")

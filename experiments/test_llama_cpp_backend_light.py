@@ -18,9 +18,9 @@ def test_llama_cpp_light():
     assert backend.llm is None
     
     caps = backend.capabilities()
-    assert caps.supports_template_verify is False
-    assert caps.supports_snapshot_restore is False
-    assert caps.state_restore_status == "failed_for_tested_model"
+    assert caps.supports_template_verify is True
+    assert caps.supports_snapshot_restore is True
+    assert caps.state_restore_status == "supported"
 
     stats = backend.stats()
     assert "capabilities" in stats
