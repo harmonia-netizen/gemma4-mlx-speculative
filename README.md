@@ -31,9 +31,9 @@ stats = get_memory_stats()
 ### 2. GGUF Backend
 - Powered by `llama-cpp-python`
 - Load, session management, generation, and multi-turn workflows verified with Qwen3.6 35B Q4_K GGUF.
-- Prefix reuse relies on `llama.cpp` same-instance prefix matching semantics (not MLX-style Python snapshot caching).
-- Exact state restore is model and API dependent (currently under validation).
-- Template Draft execution is gated behind a state restore probe (currently disabled on tested models).
+- **Prefix Acceleration:** Fully supported via low-level eval/sample.
+- **Template Draft & Exact Rollback:** Fully functional and performant via lightweight `kv_cache_seq_rm`.
+- See [GGUF Backend Design](docs/gguf_backend_design.md) for architectural details and implementation notes.
 
 ## Core Features (MLX Backend)
 
