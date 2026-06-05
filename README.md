@@ -32,7 +32,7 @@ stats = get_memory_stats()
 - Powered by `llama-cpp-python`
 - Load, session management, generation, and multi-turn workflows verified with Qwen3.6 35B Q4_K GGUF.
 - Prefix reuse relies on `llama.cpp` same-instance prefix matching semantics (not MLX-style Python snapshot caching).
-- Exact state restore is model and API dependent.
+- Exact state restore is model and API dependent (currently under validation).
 - Template Draft execution is gated behind a state restore probe (currently disabled on tested models).
 
 ## Core Features (MLX Backend)

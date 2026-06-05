@@ -44,11 +44,11 @@ class LlamaCppBackend(BaseInferenceBackend):
             tested_models=["Qwen3.6-35B-A3B-Claude-4.7-Opus-abliterated-ggml-model-Q4_K.gguf"],
             limitations=[
                 "llama-cpp-python forces full state reset for recurrent/hybrid models on branch",
-                "Tested model fails state restore due to hybrid model reset logic"
+                "Tested model fails state restore due to hybrid model reset logic or llama_decode errors"
             ],
             notes=[
                 "Initial GGUF backend via llama-cpp-python",
-                "Prefix cache reuse and exact KV snapshot restore are unsupported because llama-cpp-python forces full state reset for recurrent/hybrid models on branch.",
+                "Prefix cache reuse and exact KV snapshot restore are currently under validation because llama-cpp-python forces full state reset for recurrent/hybrid models on branch.",
                 "Template verification is not implemented due to lack of safe rollback support."
             ]
         )

@@ -20,7 +20,7 @@ def test_llama_cpp_light():
     caps = backend.capabilities()
     assert caps.supports_template_verify is False
     assert caps.supports_snapshot_restore is False
-    assert caps.supports_prefix_cache is False
+    assert caps.state_restore_status == "failed_for_tested_model"
 
     stats = backend.stats()
     assert "capabilities" in stats
