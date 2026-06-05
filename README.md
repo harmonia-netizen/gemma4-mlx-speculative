@@ -34,7 +34,8 @@ The project has evolved into a combined **Runtime Prototype** composed of:
 - **100K Token Handling**: 
   - Validated that **target-only chunked prefill** safely handles 100K contexts without OOM.
   - Demonstrated that cache **Snapshot & Restore** remains completely safe and exact (100% token match) even at 100K tokens, with snapshot operations taking virtually `0.000s`.
-  - Confirmed via `prompt_100k_runtime_probe.py` that integrated Prefix Reuse + Template Draft provides massive amortized speedups (approx. 1.9x for total elapsed time) compared to naive baseline evaluations, specifically excelling when identically heavy prefixes are reused.
+  - Discovered that running full sequential A/B/C baseline comparisons at 100K causes extreme memory swapping. Consequently, **practical deployments must rely solely on the Prefix Cache Reuse path** for long contexts.
+  - Verified via `prompt_100k_reuse_path_probe.py` that the **Reuse Path** (snapshot restore + template draft) correctly processes suffix queries in ~2.6 seconds, confirming its viability for 100K real-world agent interactions.
 
 ## Why not small-model draft?
 
