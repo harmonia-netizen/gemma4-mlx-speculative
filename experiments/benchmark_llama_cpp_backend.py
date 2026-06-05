@@ -2,6 +2,8 @@ import argparse
 import sys
 import os
 import time
+import json
+
 from gemma4_mlx_runtime import SessionCacheAPI
 
 def main():
@@ -24,7 +26,8 @@ def main():
         print(f"ERROR: Model file not found at {args.model}")
         sys.exit(1)
 
-    print(f"--- 1. Init API (backend=llama_cpp) ---")
+    if not args.json:
+        print(f"--- 1. Init API (backend=llama_cpp) ---")
     api = SessionCacheAPI.load(
         model_path=args.model,
         backend="llama_cpp",
@@ -36,45 +39,74 @@ def main():
     
     backend_stats = api.stats()
     if not backend_stats.get("available", False):
-        print("SKIP: llama-cpp-python is not installed")
+        if args.json:
+            print(json.dumps({"ok": False, "error": "llama-cpp-python is not installed"}))
+        else:
+            print("SKIP: llama-cpp-python is not installed")
         sys.exit(0)
 
-    print(f"model path: {args.model}")
-    print(f"capabilities: {backend_stats.get('capabilities', {})}")
-
-    print("\n--- 2. Create Session ---")
+    if not args.json:
+        print(f"model path: {args.model}")
+        print(f"capabilities: {backend_stats.get('capabilities', {})}")
+        print("\n--- 2. Create Session ---")
+        
     create_res = api.create_session(args.session_id, args.prefix)
-    print(f"create result: {create_res}")
+    if not args.json:
+        print(f"create result: {create_res}")
+        
     if not create_res["ok"]:
-        print("Failed to create session.")
+        if args.json:
+            print(json.dumps({"ok": False, "error": "Failed to create session."}))
+        else:
+            print("Failed to create session.")
         sys.exit(1)
 
-    print("\n--- 3. Generate ---")
+    if not args.json:
+        print("\n--- 3. Generate ---")
+        
     gen_res = api.generate(args.session_id, args.prompt, max_tokens=args.max_tokens, trace=args.trace, temperature=args.temperature)
-    print(f"ok: {gen_res['ok']}")
-    print(f"text snippet: {repr(gen_res.get('text', ''))}")
-    print(f"prompt_tokens: {gen_res.get('prompt_tokens')}")
-    print(f"completion_tokens: {gen_res.get('completion_tokens')}")
-    print(f"elapsed_sec: {gen_res.get('elapsed_sec', 0.0):.3f}s")
-    print(f"metadata: {gen_res.get('metadata')}")
     
-    print("\n--- 4. Stats before clear ---")
-    print(f"stats: {api.stats()}")
-
-    print("\n--- 5. Clear Session ---")
+    if not args.json:
+        print(f"ok: {gen_res['ok']}")
+        print(f"text snippet: {repr(gen_res.get('text', ''))}")
+        print(f"prompt_tokens: {gen_res.get('prompt_tokens')}")
+        print(f"completion_tokens: {gen_res.get('completion_tokens')}")
+        print(f"elapsed_sec: {gen_res.get('elapsed_sec', 0.0):.3f}s")
+        print(f"metadata: {gen_res.get('metadata')}")
+        print("\n--- 4. Stats before clear ---")
+        print(f"stats: {api.stats()}")
+        print("\n--- 5. Clear Session ---")
+        
     clear_res = api.clear_session(args.session_id)
-    print(f"clear result: {clear_res}")
-
-    print("\n--- 6. Final Stats ---")
-    print(f"stats: {api.stats()}")
     
-    try:
-        from experiments.session_cache_memory import get_memory_stats, format_memory_stats
-        print(format_memory_stats(get_memory_stats()))
-    except ImportError:
-        pass
-
-    print("\nOK: llama.cpp backend benchmark completed")
+    if not args.json:
+        print(f"clear result: {clear_res}")
+        print("\n--- 6. Final Stats ---")
+        
+    final_stats = api.stats()
+    
+    if not args.json:
+        print(f"stats: {final_stats}")
+        try:
+            from experiments.session_cache_memory import get_memory_stats, format_memory_stats
+            print(format_memory_stats(get_memory_stats()))
+        except ImportError:
+            pass
+        print("\nOK: llama.cpp backend benchmark completed")
+    else:
+        output = {
+            "ok": True,
+            "backend": "llama_cpp",
+            "model_path": args.model,
+            "create_session": create_res,
+            "generations": [gen_res],
+            "clear_session": clear_res,
+            "final_stats": final_stats,
+            "capabilities": backend_stats.get("capabilities", {}),
+            "elapsed_sec": gen_res.get("elapsed_sec", 0.0),
+            "error": None
+        }
+        print(json.dumps(output, ensure_ascii=False, indent=2))
 
 if __name__ == "__main__":
     main()

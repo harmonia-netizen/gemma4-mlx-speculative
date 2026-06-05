@@ -39,7 +39,8 @@ class LlamaCppBackend(BaseInferenceBackend):
             supports_token_logprobs=False,
             notes=[
                 "Initial GGUF backend via llama-cpp-python",
-                "Template verification and exact KV rollback are not implemented for GGUF backend"
+                "Prefix cache reuse and exact KV snapshot restore are unsupported because llama-cpp-python forces full state reset for recurrent/hybrid models on branch.",
+                "Template verification is not implemented due to lack of safe rollback support."
             ]
         )
 
