@@ -93,16 +93,17 @@ def main():
     
     print("\n--- Create Session ---")
     start = time.perf_counter()
-    success = runtime.create_session(session_id, prefix_text, prefix_ids)
-    prefix_prefill_sec = time.perf_counter() - start
+    create_res = runtime.create_session(session_id, prefix_text, prefix_ids)
     
-    if not success:
-        print("guard result: skipped_by_guard")
+    if not create_res.ok:
+        print(f"guard result: skipped_by_guard ({create_res.guard_reason})")
         return
         
     print(f"guard result: allowed")
     print(f"session_id: {session_id}")
-    print(f"prefix_prefill_sec: {prefix_prefill_sec:.3f}s")
+    print(f"prefix_prefill_sec: {create_res.prefix_prefill_sec:.3f}s")
+    if create_res.evicted_keys:
+        print(f"evicted keys during create: {create_res.evicted_keys}")
     
     print("\n--- Generate With Suffix ---")
     for c in cases:
@@ -120,16 +121,21 @@ def main():
             trace=args.trace
         )
         
-        print(f"suffix_prefill_sec: {res.prefill_sec:.3f}s")
+        if not res.ok:
+            print(f"Error: {res.error}")
+            continue
+            
+        print(f"suffix_prefill_sec: {res.suffix_prefill_sec:.3f}s")
         print(f"decode_sec: {res.decode_sec:.3f}s")
         print(f"accepted/drafted/rejected: {res.accepted}/{res.drafted}/{res.rejected}")
         print(f"output snippet: {repr(res.text)}")
         mx.clear_cache()
         
     print("\n--- Cache State ---")
-    print(f"cache entries: {len(prefix_manager.entries)}")
-    print(f"current_total_tokens: {prefix_manager.current_total_tokens}")
-    print(f"evictions: none so far")
+    stats = runtime.stats()
+    print(f"cache entries: {stats.entries}")
+    print(f"current_total_tokens: {stats.current_total_tokens}")
+    print(f"evictions: none so far (checked during create)")
     
     print("\nOK: session cache runtime benchmark completed")
 
