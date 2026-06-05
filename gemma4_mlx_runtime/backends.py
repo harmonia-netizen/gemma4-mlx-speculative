@@ -9,6 +9,12 @@ class BackendCapabilities:
     supports_snapshot_restore: bool
     supports_token_logprobs: bool
     notes: List[str]
+    backend_family: Optional[str] = None
+    prefix_cache_mode: Optional[str] = None
+    state_restore_status: Optional[str] = None
+    template_verify_status: Optional[str] = None
+    tested_models: Optional[List[str]] = None
+    limitations: Optional[List[str]] = None
 
 @dataclass
 class GenerationResult:

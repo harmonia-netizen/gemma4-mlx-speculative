@@ -40,7 +40,15 @@ class MLXBackend(BaseInferenceBackend):
             supports_template_verify=True,
             supports_snapshot_restore=True,
             supports_token_logprobs=False,
-            notes=["Verified primarily with Gemma 4 MLX models"]
+            backend_family="mlx",
+            prefix_cache_mode="snapshot",
+            state_restore_status="supported",
+            template_verify_status="supported",
+            tested_models=["mlx-community/gemma-4-26b-a4b-it-8bit"],
+            notes=[
+                "Primary MLX backend",
+                "Full support for template verification and exact KV rollback via MLX state cloning."
+            ]
         )
 
     def load(self, **kwargs) -> None:

@@ -1,6 +1,6 @@
-# gemma4-mlx-speculative: Gemma 4 MLX Template Draft & Session Cache Runtime
+# Gemma 4 MLX / GGUF Dual Backend Runtime
 
-This repository contains an experimental runtime for local inference acceleration on Apple Silicon / MLX with Gemma 4 models. It explores an alternative approach to speculative decoding using deterministic templates and prefix caching.
+This is an experimental **MLX/GGUF dual backend runtime** designed to test prompt manipulation, memory profiling, session cache limits, and eviction strategies safely in a multi-turn environment. It provides a common API to evaluate different models, with capabilities clearly defined per backend.
 
 **Status:** Experimental runtime (Not a production package)
 
@@ -14,15 +14,26 @@ from gemma4_mlx_runtime import SessionCacheAPI, get_memory_stats
 # MLX Backend (Default: Template Draft + Prefix/Session cache + snapshot/restore)
 api_mlx = SessionCacheAPI.load("mlx-community/gemma-4-26b-a4b-it-8bit", backend="mlx")
 
-# GGUF / llama.cpp Backend (Initial generation/session API support via llama-cpp-python)
+# GGUF / llama.cpp Backend
 api_gguf = SessionCacheAPI.load("/path/to/model.gguf", backend="llama_cpp")
 
 stats = get_memory_stats()
 ```
 
-### Supported Backends
-1. **MLX Backend (`backend="mlx"`)**: Full support for Template Draft fast-path, KV snapshot/restore, and Long Input Guard. Verified primarily with Gemma 4 MLX models.
-2. **GGUF Backend (`backend="llama_cpp"`)**: Uses `llama-cpp-python`. GGUF backend has been smoke-tested locally with one Qwen3.6 35B Q4_K GGUF model via llama-cpp-python. This confirms load/session/generation API compatibility, not Template Draft or exact KV snapshot/restore support.
+## Supported Backends
+
+### 1. MLX Backend
+- Template Draft fast-path
+- Exact KV snapshot/restore
+- Long Input Guard
+- Verified primarily with Gemma 4 MLX (e.g. `mlx-community/gemma-4-26b-a4b-it-8bit`)
+
+### 2. GGUF Backend
+- Powered by `llama-cpp-python`
+- Load, session management, generation, and multi-turn workflows verified with Qwen3.6 35B Q4_K GGUF.
+- Prefix reuse relies on `llama.cpp` same-instance prefix matching semantics (not MLX-style Python snapshot caching).
+- Exact state restore is model and API dependent.
+- Template Draft execution is gated behind a state restore probe (currently disabled on tested models).
 
 ## Core Features (MLX Backend)
 
