@@ -4,7 +4,7 @@ import sys
 import os
 import contextlib
 
-from gemma4_mlx_runtime.session_cache import SessionCacheAPI
+from local_speculative_runtime.session_cache import SessionCacheAPI
 
 GGUF_CANDIDATE_PRESETS = {
     "qwen": "experiments/template_candidates_gguf_qwen.json"

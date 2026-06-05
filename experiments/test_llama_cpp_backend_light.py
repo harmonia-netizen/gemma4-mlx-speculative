@@ -1,6 +1,6 @@
 import sys
 import json
-from gemma4_mlx_runtime.llama_cpp_backend import LlamaCppBackend
+from local_speculative_runtime.llama_cpp_backend import LlamaCppBackend
 
 def test_llama_cpp_light():
     print("test_llama_cpp_light...")

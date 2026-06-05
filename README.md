@@ -9,7 +9,7 @@ This is an experimental **MLX/GGUF dual backend runtime** designed to test promp
 You can import the runtime components via the experimental package entrypoint:
 
 ```python
-from gemma4_mlx_runtime import SessionCacheAPI, get_memory_stats
+from local_speculative_runtime import SessionCacheAPI, get_memory_stats
 
 # MLX Backend (Default: Template Draft + Prefix/Session cache + snapshot/restore)
 # By default, this uses the shared experiments/template_candidates.json

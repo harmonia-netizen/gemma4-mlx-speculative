@@ -3,7 +3,7 @@ import sys
 import os
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-from gemma4_mlx_runtime import (
+from local_speculative_runtime import (
     get_memory_stats,
     memory_stats_to_dict,
     format_memory_stats,

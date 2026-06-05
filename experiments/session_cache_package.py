@@ -6,7 +6,7 @@ import os
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from gemma4_mlx_runtime import (
+from local_speculative_runtime import (
     SessionCacheAPI,
     SessionCacheRuntime,
     PrefixCacheManager,

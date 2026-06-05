@@ -5,9 +5,9 @@ import template_draft_engine as engine
 from template_draft_runtime import LongInputGuard, PrefixCacheManager, CandidateRegistry
 from session_cache_runtime import SessionCacheRuntime
 
-from gemma4_mlx_runtime.backends import BaseInferenceBackend
-from gemma4_mlx_runtime.mlx_backend import MLXBackend
-from gemma4_mlx_runtime.llama_cpp_backend import LlamaCppBackend
+from local_speculative_runtime.backends import BaseInferenceBackend
+from local_speculative_runtime.mlx_backend import MLXBackend
+from local_speculative_runtime.llama_cpp_backend import LlamaCppBackend
 
 class SessionCacheAPI:
     def __init__(self, backend_impl: BaseInferenceBackend):

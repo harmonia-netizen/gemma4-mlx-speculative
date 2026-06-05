@@ -1,5 +1,5 @@
 import unittest
-from gemma4_mlx_runtime.cli import resolve_candidate_json, GGUF_CANDIDATE_PRESETS
+from local_speculative_runtime.cli import resolve_candidate_json, GGUF_CANDIDATE_PRESETS
 
 class TestCLIArgs(unittest.TestCase):
     def test_mlx_no_candidate_args(self):

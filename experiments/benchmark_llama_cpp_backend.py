@@ -4,7 +4,7 @@ import os
 import time
 import json
 
-from gemma4_mlx_runtime import SessionCacheAPI
+from local_speculative_runtime import SessionCacheAPI
 
 def main():
     parser = argparse.ArgumentParser(description="Llama.cpp backend smoke benchmark")

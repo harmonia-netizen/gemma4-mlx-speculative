@@ -20,7 +20,7 @@ def main():
         print("SKIP: llama-cpp-python is not installed")
         sys.exit(0)
 
-    from gemma4_mlx_runtime.llama_cpp_backend import LlamaCppBackend
+    from local_speculative_runtime.llama_cpp_backend import LlamaCppBackend
     backend = LlamaCppBackend(
         model_path=args.model,
         n_ctx=args.n_ctx,

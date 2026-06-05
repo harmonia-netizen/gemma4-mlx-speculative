@@ -4,7 +4,7 @@ import os
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from gemma4_mlx_runtime.backends import BackendCapabilities, GenerationResult
+from local_speculative_runtime.backends import BackendCapabilities, GenerationResult
 
 def test_backend_capabilities_serialization():
     print("test_backend_capabilities_serialization...")
@@ -46,11 +46,11 @@ def test_generation_result_serialization():
 def test_import_backends():
     print("test_import_backends...")
     # Import MLX
-    from gemma4_mlx_runtime.mlx_backend import MLXBackend
+    from local_speculative_runtime.mlx_backend import MLXBackend
     assert MLXBackend is not None
     
     # Import LlamaCpp
-    from gemma4_mlx_runtime.llama_cpp_backend import LlamaCppBackend
+    from local_speculative_runtime.llama_cpp_backend import LlamaCppBackend
     assert LlamaCppBackend is not None
     print("  OK")
 
