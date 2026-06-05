@@ -43,7 +43,7 @@ def main():
     print("\n--- 3. Handle Tasks ---")
     for task_name, task_text in tasks:
         print(f"\nTask: {task_name}")
-        res = runtime.handle_task(session_id, task_text, max_tokens=args.max_tokens)
+        res = runtime.handle_task(session_id, task_text, max_tokens=args.max_tokens, trace=args.trace)
         
         if not res["ok"]:
             print(f"Error: {res.get('error')}")

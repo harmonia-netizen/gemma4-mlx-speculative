@@ -120,29 +120,96 @@ class CandidateRegistry:
         self.entries = []
         for item in data:
             c = engine.Candidate(
-                name=item["name"],
-                text=item["text"],
-                confidence=item["confidence"],
-                min_tokens=item["min_tokens"],
-                tags=tuple(item["tags"])
+                name=item.get("name", ""),
+                text=item.get("text", ""),
+                confidence=item.get("confidence", 0.0),
+                min_tokens=item.get("min_tokens", 1),
+                tags=tuple(item.get("tags", []))
             )
+            
+            # 互換性: match_keywords があれば required_keywords として扱う
+            req = item.get("required_keywords", item.get("match_keywords", []))
+            any_kws = item.get("any_keywords", [])
+            neg = item.get("negative_keywords", [])
+            thresh = item.get("score_threshold", 1.0)
+            
             self.entries.append({
                 "candidate": c,
-                "match_keywords": item["match_keywords"]
+                "required_keywords": [k.lower() for k in req],
+                "any_keywords": [k.lower() for k in any_kws],
+                "negative_keywords": [k.lower() for k in neg],
+                "score_threshold": thresh
             })
 
-    def get_candidates(self, user_prompt: str) -> List[engine.Candidate]:
+    def get_candidates(self, user_prompt: str) -> List[Dict[str, Any]]:
         p = user_prompt.lower()
         matched = []
         for entry in self.entries:
-            keywords = [kw.lower() for kw in entry["match_keywords"]]
-            if all(kw in p for kw in keywords):
-                matched.append(entry["candidate"])
+            if not all(kw in p for kw in entry["required_keywords"]):
+                continue
+            if any(kw in p for kw in entry["negative_keywords"]):
+                continue
+                
+            any_match_count = sum(1 for kw in entry["any_keywords"] if kw in p)
+            if entry["any_keywords"] and any_match_count < entry["score_threshold"]:
+                continue
+                
+            score = len(entry["required_keywords"]) + any_match_count
+            matched.append({
+                "candidate": entry["candidate"],
+                "score": score,
+                "req_matched": len(entry["required_keywords"]),
+                "any_matched": any_match_count
+            })
+            
         return matched
         
     def select_candidate(self, user_prompt: str, tokenizer, min_tokens: int = 1, trace: bool = False) -> Optional[engine.Candidate]:
-        candidates = self.get_candidates(user_prompt)
-        return engine.select_candidate(user_prompt, candidates, tokenizer, min_tokens, trace)
+        candidates_info = self.get_candidates(user_prompt)
+        valid_candidates = []
+        
+        for info in candidates_info:
+            c = info["candidate"]
+            token_count = len(engine.encode_candidate(tokenizer, c))
+            score = info["score"]
+            
+            if trace:
+                print(f"trace: candidate {c.name}: confidence={c.confidence}, score={score}, token_count={token_count}, req={info['req_matched']}, any={info['any_matched']}")
+                
+            if c.confidence < 0.8:
+                if trace:
+                    print(f"  -> rejected: confidence < 0.8")
+                continue
+                
+            if token_count <= 0:
+                if trace:
+                    print(f"  -> rejected: token_count <= 0")
+                continue
+                
+            required_min = max(min_tokens, c.min_tokens)
+            if token_count < required_min:
+                if trace:
+                    print(f"  -> rejected: token_count {token_count} < required_min {required_min}")
+                continue
+                
+            valid_candidates.append((c, score, token_count))
+            
+        if not valid_candidates:
+            if trace:
+                print("trace: no valid candidate selected")
+            return None
+            
+        # 1. confidence desc
+        # 2. score desc
+        # 3. token_count desc
+        # 4. name asc
+        valid_candidates.sort(key=lambda x: (-x[0].confidence, -x[1], -x[2], x[0].name))
+        best_c, best_score, best_tc = valid_candidates[0]
+        
+        if trace:
+            print(f"trace: selected candidate {best_c.name} (confidence={best_c.confidence}, score={best_score}, tokens={best_tc})")
+            
+        return best_c
 
 
 class TemplateDraftRuntime:

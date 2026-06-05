@@ -14,8 +14,8 @@ class AgentMockRuntime:
         self.context[session_id] = static_context
         return self.api.create_session(session_id, static_context)
 
-    def handle_task(self, session_id: str, task_text: str, max_tokens: int = 16) -> dict:
-        return self.api.generate(session_id, task_text, max_tokens=max_tokens)
+    def handle_task(self, session_id: str, task_text: str, max_tokens: int = 16, trace: bool = False) -> dict:
+        return self.api.generate(session_id, task_text, max_tokens=max_tokens, trace=trace)
 
     def clear(self, session_id: str) -> dict:
         if session_id in self.context:
