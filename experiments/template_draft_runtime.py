@@ -1,5 +1,7 @@
 import time
 import hashlib
+import json
+import os
 from dataclasses import dataclass
 from typing import List, Optional, Dict, Any
 
@@ -14,19 +16,33 @@ class PrefixCacheEntry:
     snapshot: Any
     cache: Any
     prefill_sec: float
-
+    created_at: float
+    last_used_at: float
+    hit_count: int
+    evicted_keys: list[str] | None = None
 
 class PrefixCacheManager:
-    def __init__(self):
+    def __init__(self, max_entries: int = 2, max_total_tokens: int = 120000):
         self.entries: Dict[str, PrefixCacheEntry] = {}
+        self.max_entries = max_entries
+        self.max_total_tokens = max_total_tokens
+        self.current_total_tokens = 0
 
     def _hash(self, text: str) -> str:
         return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
     def get_or_create(self, prefix_text: str, prefix_ids: List[int], target_model, max_kv_size) -> PrefixCacheEntry:
+        if len(prefix_ids) > self.max_total_tokens:
+            raise ValueError(f"prefix length {len(prefix_ids)} exceeds max_total_tokens {self.max_total_tokens}")
+
         h = self._hash(prefix_text)
         if h in self.entries:
-            return self.entries[h]
+            entry = self.entries[h]
+            entry.last_used_at = time.time()
+            entry.hit_count += 1
+            return entry
+            
+        evicted = self.evict_if_needed(len(prefix_ids))
         
         lm = engine.get_lm(target_model)
         start = time.perf_counter()
@@ -52,17 +68,77 @@ class PrefixCacheManager:
         prefill_sec = time.perf_counter() - start
         snapshot = engine.full_snapshot(prompt_cache)
         
-        entry = PrefixCacheEntry(h, prefix_ids, snapshot, prompt_cache, prefill_sec)
+        now = time.time()
+        entry = PrefixCacheEntry(h, prefix_ids, snapshot, prompt_cache, prefill_sec, now, now, 0)
+        entry.evicted_keys = evicted
         self.entries[h] = entry
+        self.current_total_tokens += len(prefix_ids)
         return entry
+
+    def evict_if_needed(self, additional_tokens: int = 0) -> List[str]:
+        evicted = []
+        while self.entries and (len(self.entries) >= self.max_entries or self.current_total_tokens + additional_tokens > self.max_total_tokens):
+            oldest_key = min(self.entries.keys(), key=lambda k: self.entries[k].last_used_at)
+            entry = self.entries.pop(oldest_key)
+            self.current_total_tokens -= len(entry.token_ids)
+            evicted.append(oldest_key)
+        return evicted
+
+
+@dataclass
+class GuardResult:
+    allowed: bool
+    prompt_tokens: int
+    safe_token_limit: int
+    reason: str
+
+class LongInputGuard:
+    def __init__(self, safe_token_limit: int = 120000, require_chunked_prefill: bool = True):
+        self.safe_token_limit = safe_token_limit
+        self.require_chunked_prefill = require_chunked_prefill
+
+    def validate(self, prompt_tokens: int, use_chunked_prefill: bool = True) -> GuardResult:
+        if prompt_tokens > self.safe_token_limit:
+            return GuardResult(False, prompt_tokens, self.safe_token_limit, f"Prompt tokens {prompt_tokens} exceeds safe limit {self.safe_token_limit}")
+        if self.require_chunked_prefill and not use_chunked_prefill:
+            return GuardResult(False, prompt_tokens, self.safe_token_limit, "Chunked prefill is required but not enabled")
+        return GuardResult(True, prompt_tokens, self.safe_token_limit, "")
 
 
 class CandidateRegistry:
-    def __init__(self):
-        pass
+    def __init__(self, json_path: str = "experiments/template_candidates.json"):
+        self.json_path = json_path
+        self.entries = []
+        self._load()
+
+    def _load(self):
+        if not os.path.exists(self.json_path):
+            raise FileNotFoundError(f"Candidate JSON not found: {self.json_path}")
+        with open(self.json_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+            
+        self.entries = []
+        for item in data:
+            c = engine.Candidate(
+                name=item["name"],
+                text=item["text"],
+                confidence=item["confidence"],
+                min_tokens=item["min_tokens"],
+                tags=tuple(item["tags"])
+            )
+            self.entries.append({
+                "candidate": c,
+                "match_keywords": item["match_keywords"]
+            })
 
     def get_candidates(self, user_prompt: str) -> List[engine.Candidate]:
-        return engine.draft_candidates(user_prompt)
+        p = user_prompt.lower()
+        matched = []
+        for entry in self.entries:
+            keywords = [kw.lower() for kw in entry["match_keywords"]]
+            if all(kw in p for kw in keywords):
+                matched.append(entry["candidate"])
+        return matched
         
     def select_candidate(self, user_prompt: str, tokenizer, min_tokens: int = 1, trace: bool = False) -> Optional[engine.Candidate]:
         candidates = self.get_candidates(user_prompt)

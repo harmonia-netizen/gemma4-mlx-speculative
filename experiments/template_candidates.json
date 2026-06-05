@@ -1,0 +1,34 @@
+[
+  {
+    "name": "exact_pytest_plan",
+    "match_keywords": ["次の確認手順をbashブロックだけで出してください", "pytestの失敗内容を短く確認したい", "git status --short", "pytest --tb=short"],
+    "text": "```bash\ngit status --short\npytest --tb=short\ngit diff\n```",
+    "confidence": 0.98,
+    "min_tokens": 15,
+    "tags": ["exact", "bash", "pytest"]
+  },
+  {
+    "name": "short_pytest_command",
+    "match_keywords": ["pytestを実行してください", "テストを実行", "pytest -q"],
+    "text": "```bash\npytest -q\n```",
+    "confidence": 0.75,
+    "min_tokens": 5,
+    "tags": ["short", "bash", "pytest"]
+  },
+  {
+    "name": "git_status_command",
+    "match_keywords": ["作業ツリーの状態を確認", "git status"],
+    "text": "```bash\ngit status\n```",
+    "confidence": 0.75,
+    "min_tokens": 5,
+    "tags": ["short", "bash", "git"]
+  },
+  {
+    "name": "git_diff_command",
+    "match_keywords": ["gitの差分を確認", "git diff"],
+    "text": "```bash\ngit diff\n```",
+    "confidence": 0.75,
+    "min_tokens": 5,
+    "tags": ["short", "bash", "git"]
+  }
+]
