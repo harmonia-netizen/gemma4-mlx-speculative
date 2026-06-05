@@ -1,4 +1,4 @@
-# Gemma 4 MLX / GGUF Dual Backend Runtime
+# local-speculative-runtime
 
 This is an experimental **MLX/GGUF dual backend runtime** designed to test prompt manipulation, memory profiling, session cache limits, and eviction strategies safely in a multi-turn environment. It provides a common API to evaluate different models, with capabilities clearly defined per backend.
 
@@ -16,11 +16,11 @@ from local_speculative_runtime import SessionCacheAPI, get_memory_stats
 api_mlx = SessionCacheAPI.load("mlx-community/gemma-4-26b-a4b-it-8bit", backend="mlx")
 
 # GGUF / llama.cpp Backend
-# NOTE: For Qwen GGUF, you MUST specify the dedicated template candidate JSON to achieve successful Template Draft acceleration.
-# This ensures that GGUF-specific tokens/rules do not pollute the shared MLX candidates.
+# NOTE: GGUF requires an explicit model-specific candidate JSON.
+# Built-in examples currently include a Qwen-oriented candidate set, but this backend can run any GGUF.
 api_gguf = SessionCacheAPI.load(
-    model_path="/path/to/Qwen3.6-35B-A3B-Claude-4.7-Opus-abliterated-ggml-model-Q4_K.gguf",
-    candidate_json_path="experiments/template_candidates_gguf_qwen.json",
+    model_path="/path/to/model.gguf",
+    candidate_json_path="experiments/template_candidates_gguf_qwen.json",  # Example for Qwen
     backend="llama_cpp"
 )
 
@@ -37,7 +37,7 @@ stats = get_memory_stats()
 
 ### 2. GGUF Backend
 - Powered by `llama-cpp-python`
-- Load, session management, generation, and multi-turn workflows verified with Qwen3.6 35B Q4_K GGUF.
+- Load, session management, generation, and multi-turn workflows are verified to work generically.
 - **Prefix Acceleration:** Fully supported via low-level eval/sample.
 - **Template Draft & Exact Rollback:** Fully functional and performant via lightweight `kv_cache_seq_rm`.
 - See [GGUF Backend Design](docs/gguf_backend_design.md) for architectural details and implementation notes.
@@ -50,7 +50,35 @@ This project focuses on three main architectural directions:
 2. **Prefix / Session Cache Reuse**: Evaluates and caches long shared context prefixes (KV cache). The engine can restore this snapshot for subsequent multi-turn requests, reducing repeated prefill work.
 3. **Long Input Guard**: Built-in capacity guard that monitors and restricts prompt lengths to prevent out-of-memory (OOM) crashes on Apple Silicon.
 
+## CLI Usage
+
+The runtime provides a unified CLI for both MLX and GGUF backends.
+
+**MLX:**
+```bash
+python -m local_speculative_runtime.cli \
+  --backend mlx \
+  --model mlx-community/gemma-4-26b-a4b-it-8bit \
+  --prompt "Return exactly: OK" \
+  --max-tokens 16 \
+  --json
+```
+*Note: For MLX, do not specify `--model-type` or `--candidate-json`.*
+
+**GGUF:**
+```bash
+python -m local_speculative_runtime.cli \
+  --backend llama_cpp \
+  --model "$HOME/Documents/model.gguf" \
+  --model-type qwen \
+  --prompt "Return exactly: OK" \
+  --max-tokens 16 \
+  --json
+```
+*Note: For GGUF, either `--model-type` or `--candidate-json` is strictly required. The built-in preset is currently `qwen` only; other models require specifying their specific candidate rules via `--candidate-json`.*
+
 ## Quick Start & Verification
+
 
 **1. Run full completion checks and tests:**
 ```bash
