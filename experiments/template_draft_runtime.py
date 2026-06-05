@@ -37,16 +37,18 @@ class PrefixCacheManager:
             emb = target_model.get_input_embeddings(input_arr, None, mask=None)
             inputs_embeds = emb.inputs_embeds
             extra = {k: v for k, v in emb.to_dict().items() if k != "inputs_embeds" and v is not None}
-            
-            lm(
-                input_arr,
-                inputs_embeds=inputs_embeds,
-                cache=prompt_cache,
-                n_to_process=input_arr.shape[1],
-                **extra,
-            )
-            engine.eval_cache(prompt_cache)
-            
+            n = input_arr.shape[1]
+            step_size = 512
+            for i in range(0, n, step_size):
+                chunk_len = min(step_size, n - i)
+                lm(
+                    input_arr[:, i:i+chunk_len],
+                    inputs_embeds=inputs_embeds[:, i:i+chunk_len] if inputs_embeds is not None else None,
+                    cache=prompt_cache,
+                    n_to_process=chunk_len,
+                    **extra,
+                )
+                engine.eval_cache(prompt_cache)
         prefill_sec = time.perf_counter() - start
         snapshot = engine.full_snapshot(prompt_cache)
         
@@ -84,28 +86,33 @@ class TemplateDraftRuntime:
         inputs_embeds = emb.inputs_embeds
         extra = {k: v for k, v in emb.to_dict().items() if k != "inputs_embeds" and v is not None}
         
+        step_size = 512
         p = len(prefix_ids)
         if input_arr.shape[1] > 1:
             if p > 0:
-                lm(
-                    input_arr[:, :p],
-                    inputs_embeds=inputs_embeds[:, :p],
-                    cache=prompt_cache,
-                    n_to_process=p,
-                    **extra,
-                )
-                engine.eval_cache(prompt_cache)
+                for i in range(0, p, step_size):
+                    chunk_len = min(step_size, p - i)
+                    lm(
+                        input_arr[:, i:i+chunk_len],
+                        inputs_embeds=inputs_embeds[:, i:i+chunk_len] if inputs_embeds is not None else None,
+                        cache=prompt_cache,
+                        n_to_process=chunk_len,
+                        **extra,
+                    )
+                    engine.eval_cache(prompt_cache)
                 
             rem = input_arr.shape[1] - 1
             if rem > p:
-                lm(
-                    input_arr[:, p:rem],
-                    inputs_embeds=inputs_embeds[:, p:rem],
-                    cache=prompt_cache,
-                    n_to_process=rem - p,
-                    **extra,
-                )
-                engine.eval_cache(prompt_cache)
+                for i in range(p, rem, step_size):
+                    chunk_len = min(step_size, rem - i)
+                    lm(
+                        input_arr[:, i:i+chunk_len],
+                        inputs_embeds=inputs_embeds[:, i:i+chunk_len] if inputs_embeds is not None else None,
+                        cache=prompt_cache,
+                        n_to_process=chunk_len,
+                        **extra,
+                    )
+                    engine.eval_cache(prompt_cache)
 
         cur = input_arr[:, -1:]
         return cur

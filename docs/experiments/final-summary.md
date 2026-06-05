@@ -22,7 +22,8 @@
 ## What Did Not Work (Limits & Bottlenecks)
 - **Small Model Speculative Decoding の見送り**: Gemma 4 向けの適切なアライメントを持つ小規模 Draft Model が不足していること、および推論エンジン側に余分なメモリ/ロード負荷がかかることから、今回の用途では採用を見送った。
 - **純粋な Decode 高速化の限界**: Long Context 下では全体の実行時間が Prefill に完全に支配されるため、Template Draft だけを最適化しても `elapsed_sec` にはほぼ寄与しない (Speedup ~1.002x 程度) ことが判明した。これが Prefix Reuse への移行の決定打となった。
-- **OOM の回避限界**: キャッシュ再利用をしても、元の Prefix 自体が物理メモリの許容上限 (例: Repeat-lines 2000 / 約58kトークンで 100GB 超) に達した場合、実行自体が不可能になる制約は残る。
+- **100K トークンの限界と成功**: `prompt_100k.txt` を用いた検証を通じ、単一バッチでの巨大プレフィルは OOM を引き起こすが、Chunked Prefill を用いることで 100K トークンの target-only prefill は今回条件で通ることを確認した。また、restore probe では 32K / 64K / 100K で restore 後の生成トークン列が baseline と一致した。一方で、複数snapshot保持や100K統合RuntimeのA/B/C比較は未完走であり、実運用上のメモリ管理は未解決である。
+- **OOM の回避限界**: キャッシュ再利用をしても、元の Prefix 自体が物理メモリの許容上限 (例: 120k超のトークン) に達した場合、実行自体が不可能になる制約は残る。そのため、Runtime 側での `safe-token-limit` 等の Long Input Guard の導入が必要不可欠である。
 
 ## Final Architecture
 以下の3つのコアコンポーネントで構成される Runtime Prototype を実装した。
@@ -40,3 +41,5 @@
 2. **PrefixCacheManager の LRU 化**: 実メモリ制約に合わせて保持する Snapshot のライフサイクルを管理する機構。
 3. **Session 単位の Cache 管理**: エージェントの「対話履歴 (Conversation)」に対し、ターンごとの差分のみを Append/Prefill する Multi-turn Session Manager への拡張。
 4. **API / Package 化**: 今回の Prototype を再利用可能な独立パッケージまたはサーバーエンドポイントとして提供する。
+
+- **100K統合Runtimeの注意**: 100Kのcapacity/restoreは今回条件で成立したが、A/B/C統合Runtime比較は未完走であり、100Kでの統合speedupは未確定。

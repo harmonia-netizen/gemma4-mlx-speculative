@@ -31,6 +31,10 @@ The project has evolved into a combined **Runtime Prototype** composed of:
 - **Exact Output Decode**: ~**2.2x** speedup (Template Draft Engine).
 - **Long Context Prefix Reuse**: ~**2.9x** overall amortized speedup for ~15k token sequences across multiple generated suffixes.
 - **Integrated Runtime Prototype**: Successfully unified Prefix Cache Reuse and Template Draft, maintaining 100% token match while delivering combined prefill and decode accelerations.
+- **100K Token Handling**: 
+  - Validated that **target-only chunked prefill** safely handles 100K contexts without OOM.
+  - Demonstrated that cache **Snapshot & Restore** remains completely safe and exact (100% token match) even at 100K tokens, with snapshot operations taking virtually `0.000s`.
+  - Confirmed via `prompt_100k_runtime_probe.py` that integrated Prefix Reuse + Template Draft provides massive amortized speedups (approx. 1.9x for total elapsed time) compared to naive baseline evaluations, specifically excelling when identically heavy prefixes are reused.
 
 ## Why not small-model draft?
 

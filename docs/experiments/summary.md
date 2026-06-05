@@ -34,7 +34,8 @@ The successful approach shifted away from dual-model setups to a single-model te
 | engine | Reusable experiment runner | Fast, safe, reusable | Baseline decode engine |
 | long_context | Prefill bottleneck analysis | Prefill takes 98% of elapsed time | Identified need for Prefix Cache |
 | prefix_reuse | Prefix Cache snapshot/restore | ~2.9x amortized speedup | Adopted for long contexts |
-| integrated_runtime | Template Draft + Prefix Cache | Combined speedups achieved safely | **Current final architecture prototype** |
+| integrated_runtime | Template Draft + Prefix Cache | Combined speedups achieved safely | Adopted architecture prototype |
+| 100K capacity/restore/runtime | 100K Tokens Validation | Confirmed safe snapshot/restore, exposed heavy prefill cost | Defined safe limit & confirmed prefix-reuse necessity |
 
 ## Further Reading
 - [Template Draft Engine Detailed Docs](template-draft-engine.md)
