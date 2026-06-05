@@ -22,7 +22,7 @@ CASES = {
     "safe_check_plan": "現在の状態を安全に確認したいです。pwdとlsだけを出してください。",
     "medium_pytest_plan": """pytest失敗の原因を安全に確認するため、次に実行する確認手順を3行のbashブロックで出してください。
 前提:
-- repo=gemma4-mlx-speculative
+- repo=local-speculative-runtime
 - destructive commandは禁止
 - 3コマンドだけ出す
 - 説明文は不要

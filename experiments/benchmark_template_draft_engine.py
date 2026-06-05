@@ -33,7 +33,7 @@ CASES = [
         """あなたはローカル常駐エージェントです。
 現在の作業ツリーの状態を確認するため、次に実行すべき確認コマンドを1つだけ出してください。
 前提:
-- repo=gemma4-mlx-speculative
+- repo=local-speculative-runtime
 - 変更ファイルの有無を確認したい
 - destructive commandは禁止
 """,
@@ -44,7 +44,7 @@ CASES = [
         """あなたはローカル常駐エージェントです。
 直前の修正内容を確認するため、次に実行すべき確認コマンドを1つだけ出してください。
 前提:
-- repo=gemma4-mlx-speculative
+- repo=local-speculative-runtime
 - 差分を確認したい
 - destructive commandは禁止
 """,
@@ -55,7 +55,7 @@ CASES = [
         """あなたはローカル常駐エージェントです。
 pytest失敗の原因を安全に確認するため、次に実行する確認手順を3行のbashブロックで出してください。
 前提:
-- repo=gemma4-mlx-speculative
+- repo=local-speculative-runtime
 - destructive commandは禁止
 - 3コマンドだけ出す
 - 説明文は不要

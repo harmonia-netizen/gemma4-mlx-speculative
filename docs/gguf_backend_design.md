@@ -1,6 +1,6 @@
 # GGUF Backend Implementation Design
 
-This document details the design, functionality, and constraints of the GGUF backend (`LlamaCppBackend`) within the `gemma4-mlx-speculative` project. This backend provides the same core capabilities as the MLX backend for Prefix Acceleration, Exact Rollback, and Template Draft, while using GGUF-specific implementation mechanisms.
+This document details the design, functionality, and constraints of the GGUF backend (`LlamaCppBackend`) within the `local-speculative-runtime` project. This backend provides the same core capabilities as the MLX backend for Prefix Acceleration, Exact Rollback, and Template Draft, while using GGUF-specific implementation mechanisms.
 
 ## 1. Rationale for Low-Level `eval` / `sample`
 Instead of using `llama-cpp-python`'s high-level `create_completion` or `__call__` methods, the GGUF backend utilizes low-level `eval` and `sample` loops.
