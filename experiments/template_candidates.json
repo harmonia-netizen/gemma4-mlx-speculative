@@ -16,17 +16,17 @@
     "tags": ["short", "bash", "pytest"]
   },
   {
-    "name": "git_status_command",
+    "name": "git_status_short",
     "match_keywords": ["作業ツリーの状態を確認", "git status"],
-    "text": "```bash\ngit status\n```",
+    "text": "```bash\ngit status --short\n```",
     "confidence": 0.85,
     "min_tokens": 5,
     "tags": ["short", "bash", "git"]
   },
   {
-    "name": "git_diff_command",
+    "name": "git_diff_stat",
     "match_keywords": ["gitの差分を確認", "git diff"],
-    "text": "```bash\ngit diff\n```",
+    "text": "```bash\ngit diff --stat\n```",
     "confidence": 0.85,
     "min_tokens": 5,
     "tags": ["short", "bash", "git"]
@@ -40,20 +40,28 @@
     "tags": ["exact", "bash", "git"]
   },
   {
-    "name": "safe_check_plan",
+    "name": "safe_runtime_check_plan",
     "match_keywords": ["安全な確認手順", "ls", "pwd"],
-    "text": "```bash\ngit status --short\ngit diff --stat\npython -m py_compile experiments/template_draft_runtime.py experiments/session_cache_runtime.py\n```",
+    "text": "```bash\ngit status --short\ngit diff --stat\npython -m py_compile experiments/template_draft_runtime.py experiments/session_cache_runtime.py experiments/session_cache_api.py\n```",
     "confidence": 0.90,
     "min_tokens": 8,
     "tags": ["exact", "bash", "sys"]
   },
   {
-    "name": "python_compile_check",
+    "name": "py_compile_runtime",
     "match_keywords": ["pythonのコンパイル確認", "py_compile"],
-    "text": "```bash\npython -m py_compile experiments/template_draft_runtime.py experiments/session_cache_runtime.py\n```",
+    "text": "```bash\npython -m py_compile experiments/template_draft_runtime.py experiments/session_cache_runtime.py experiments/session_cache_api.py\n```",
     "confidence": 0.85,
     "min_tokens": 6,
     "tags": ["exact", "bash", "python"]
+  },
+  {
+    "name": "run_session_tests",
+    "match_keywords": ["session tests", "test_prefix", "test_candidate", "test_session_cache_api"],
+    "text": "```bash\npython experiments/test_prefix_cache_manager.py\npython experiments/test_candidate_registry.py\npython experiments/test_session_cache_api.py\n```",
+    "confidence": 0.85,
+    "min_tokens": 10,
+    "tags": ["exact", "bash", "pytest"]
   },
   {
     "name": "low_confidence_pytest",

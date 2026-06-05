@@ -23,8 +23,8 @@ pytest --tb=short"""
     # 2. git status (case insensitive test)
     user_prompt_git = "作業ツリーの状態を確認するため、GIT STATUS を実行"
     c2 = registry.select_candidate(user_prompt_git, tokenizer, min_tokens=1)
-    assert c2 is not None, "Expected git_status_command, but got None"
-    assert c2.name == "git_status_command", f"Expected git_status_command, got {c2.name}"
+    assert c2 is not None, "Expected git_status_short, but got None"
+    assert c2.name == "git_status_short", f"Expected git_status_short, got {c2.name}"
 
     # 3. no_candidate_medium_plan / medium_pytest_plan
     user_prompt_medium = """pytest失敗の原因を安全に確認するため、次に実行する確認手順を3行のbashブロックで出してください。
@@ -45,13 +45,13 @@ pytest --tb=short"""
     user_prompt_safe = "安全な確認手順 ls pwd"
     c5 = registry.select_candidate(user_prompt_safe, tokenizer, min_tokens=1)
     assert c5 is not None
-    assert c5.name == "safe_check_plan"
+    assert c5.name == "safe_runtime_check_plan"
 
     # 6. python_compile_check
     user_prompt_compile = "pythonのコンパイル確認のため py_compile"
     c6 = registry.select_candidate(user_prompt_compile, tokenizer, min_tokens=1)
     assert c6 is not None
-    assert c6.name == "python_compile_check"
+    assert c6.name == "py_compile_runtime"
 
     # 7. git_add_status_commit_plan (low confidence -> None)
     user_prompt_commit = "変更をコミットしたいので git add と git commit して"
