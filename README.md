@@ -2,6 +2,19 @@
 
 This repository contains an experimental runtime for local inference acceleration on Apple Silicon / MLX with Gemma 4 models. It explores an alternative approach to speculative decoding using deterministic templates and prefix caching.
 
+**Status:** Experimental runtime (Not a production package)
+
+## Package Entrypoint
+
+You can import the runtime components via the experimental package entrypoint:
+
+```python
+from gemma4_mlx_runtime import SessionCacheAPI, get_memory_stats
+
+api = SessionCacheAPI()
+stats = get_memory_stats()
+```
+
 ## Core Features
 
 This project focuses on three main architectural directions:
@@ -11,12 +24,6 @@ This project focuses on three main architectural directions:
 3. **Long Input Guard**: Built-in capacity guard that monitors and restricts prompt lengths to prevent out-of-memory (OOM) crashes on Apple Silicon.
 
 *Note: MTP (Multi-Token Prediction) and small-model lightweight drafts were explored but are not adopted in the current iteration.*
-
-## 100K Token Handling
-
-- **Chunked Prefill**: Validated that target-only chunked prefill completed for a 100K-token context under the tested conditions.
-- **Full Baseline Comparisons Excluded**: Running full sequential A/B/C baseline comparisons at 100K causes extreme memory swapping and is not recommended.
-- **Practical Usage**: Real-world operations with 100K+ context lengths must rely solely on the **Prefix Cache Reuse** path.
 
 ## Quick Start & Verification
 
@@ -35,12 +42,9 @@ python experiments/benchmark_template_draft_runtime.py \
   --template-min-tokens 1
 ```
 
-**3. Run the Long Input Guard probe (100K Example):**
+**3. Run the memory stats benchmark:**
 ```bash
-python experiments/session_100k_probe.py \
-  --target-tokens 100000 \
-  --safe-token-limit 32000 \
-  --max-tokens 16
+python experiments/benchmark_memory_stats.py
 ```
 
 ## License

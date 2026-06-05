@@ -1,5 +1,9 @@
 import json
-from session_cache_package import (
+import sys
+import os
+
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+from gemma4_mlx_runtime import (
     SessionCacheAPI,
     get_memory_stats,
     CacheStats
@@ -42,7 +46,7 @@ def test_clear_session_behavior():
     mock_processor.tokenizer.encode = lambda x: [1, 2, 3] # fake tokens
     
     # Patch d.load in session_cache_api
-    with mock.patch("session_cache_api.d.load", return_value=(mock_model, mock_processor)):
+    with mock.patch("experiments.session_cache_api.d.load", return_value=(mock_model, mock_processor)):
         api = SessionCacheAPI(model_path="dummy", candidate_json_path="experiments/template_candidates.json")
         
         # We need to mock PrefixCacheManager.get_or_create to return a dummy entry

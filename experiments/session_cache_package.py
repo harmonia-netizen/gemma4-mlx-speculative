@@ -1,27 +1,25 @@
 """
-Session Cache Package
-
-External interface for using session cache runtime.
+Backward compatibility shim for experiments.
 """
+import sys
+import os
 
-from session_cache_core import (
-    SessionCreateResult,
-    SessionGenerateResult,
-    CacheStats,
-    SessionState
-)
-from session_cache_api import SessionCacheAPI
-from session_cache_runtime import SessionCacheRuntime
-from template_draft_runtime import (
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
+from gemma4_mlx_runtime import (
+    SessionCacheAPI,
+    SessionCacheRuntime,
     PrefixCacheManager,
     LongInputGuard,
     CandidateRegistry,
-    GuardResult
-)
-from session_cache_memory import (
+    CacheStats,
+    SessionCreateResult,
+    SessionGenerateResult,
+    SessionState,
     get_memory_stats,
     format_memory_stats,
-    MemoryStats
+    MemoryStats,
+    GuardResult
 )
 
 __all__ = [

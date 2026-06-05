@@ -113,8 +113,17 @@ class LongInputGuard:
 
 
 class CandidateRegistry:
-    def __init__(self, json_path: str = "experiments/template_candidates.json"):
-        self.json_path = json_path
+    def __init__(self, json_path: Optional[str] = None):
+        if json_path is None:
+            # Default to repo root if available
+            root_candidate = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "experiments", "template_candidates.json")
+            if os.path.exists(root_candidate):
+                self.json_path = root_candidate
+            else:
+                self.json_path = "experiments/template_candidates.json"
+        else:
+            self.json_path = json_path
+            
         self.entries = []
         self._load()
 
