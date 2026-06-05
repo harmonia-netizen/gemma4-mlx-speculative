@@ -88,6 +88,75 @@ class LlamaCppBackend(BaseInferenceBackend):
         except Exception:
             return ""
 
+
+    def _clear_context(self) -> None:
+        if self.llm:
+            self.llm.reset()
+            if hasattr(self.llm._ctx, "kv_cache_clear"):
+                self.llm._ctx.kv_cache_clear()
+
+    def _eval_chunked(self, tokens: List[int]) -> None:
+        if not tokens: return
+        n_batch = getattr(self.llm, "n_batch", 512)
+        for i in range(0, len(tokens), n_batch):
+            self.llm.eval(tokens[i : i + n_batch])
+
+    def _greedy_sample(self) -> int:
+        import numpy as np
+        return int(np.argmax(self.llm.scores[self.llm.n_tokens - 1, :]))
+
+    def _load_session_state(self, state: Any, full_prompt: str, prompt_or_suffix: str) -> List[int]:
+        if state is not None:
+            self.llm.load_state(state)
+            return self.tokenize(prompt_or_suffix)
+        else:
+            self._clear_context()
+            return self.tokenize(full_prompt)
+
+    def _generate_greedy_tokens(self, out_tokens: List[int], max_tokens: int, stop_id: int) -> None:
+        while len(out_tokens) < max_tokens:
+            tid = self._greedy_sample()
+            if tid == stop_id:
+                break
+            out_tokens.append(tid)
+            self.llm.eval([tid])
+
+    def _verify_candidate_block(self, block: List[int], trace: bool, metrics: Dict[str, float]) -> List[int]:
+        import numpy as np
+        t0 = time.perf_counter()
+        target_id = self._greedy_sample()
+        metrics["sample_count"] = metrics.get("sample_count", 0) + 1
+        if target_id != block[0]:
+            if trace: print(f"trace: mismatch at block[0]: target={target_id} block[0]={block[0]}")
+            metrics["C_verify_sec"] += time.perf_counter() - t0
+            return []
+            
+        t1 = time.perf_counter()
+        block_state = self.llm.save_state()
+        metrics["C_save_state_sec"] += time.perf_counter() - t1
+        
+        t2 = time.perf_counter()
+        self.llm.eval(block)
+        metrics["C_eval_block_sec"] += time.perf_counter() - t2
+        
+        for i in range(len(block) - 1):
+            pred = int(np.argmax(self.llm.scores[self.llm.n_tokens - len(block) + i, :]))
+            if pred != block[i+1]:
+                if trace: print(f"trace: mismatch inside block at i={i}: pred={pred} block[{i+1}]={block[i+1]}")
+                t3 = time.perf_counter()
+                self.llm.load_state(block_state)
+                metrics["C_load_state_sec"] += time.perf_counter() - t3
+                accepted_tokens = block[:i+1]
+                t4 = time.perf_counter()
+                self.llm.eval(accepted_tokens)
+                metrics["C_eval_block_sec"] += time.perf_counter() - t4
+                metrics["C_verify_sec"] += time.perf_counter() - t0
+                return accepted_tokens
+                
+        metrics["C_verify_sec"] += time.perf_counter() - t0
+        return block
+
+
     def create_session(self, session_id: str, prefix_text: str) -> Dict[str, Any]:
         if self.load_error:
             return {
@@ -103,20 +172,12 @@ class LlamaCppBackend(BaseInferenceBackend):
             
         start_time = time.perf_counter()
         
-        # Tokenize prefix
         tokens_prefix = self.tokenize(prefix_text)
         prompt_tokens = len(tokens_prefix)
         
         if self.llm:
-            self.llm.reset()
-            if hasattr(self.llm._ctx, "kv_cache_clear"):
-                self.llm._ctx.kv_cache_clear()
-            
-            # Chunk eval to avoid llama_decode returning 1
-            n_batch = getattr(self.llm, "n_batch", 512)
-            for i in range(0, prompt_tokens, n_batch):
-                self.llm.eval(tokens_prefix[i : i + n_batch])
-                
+            self._clear_context()
+            self._eval_chunked(tokens_prefix)
             state = self.llm.save_state()
         else:
             state = None
@@ -149,12 +210,10 @@ class LlamaCppBackend(BaseInferenceBackend):
     def generate(self, session_id: Optional[str], prompt_or_suffix: str, max_tokens: int = 16, **kwargs) -> GenerationResult:
         if self.load_error:
             return GenerationResult(False, "", [], 0.0, None, None, self.load_error, self.backend_name, {})
-            
         if not self.llm:
             return GenerationResult(False, "", [], 0.0, 0, 0, "Model not loaded", self.backend_name, {})
             
         temperature = kwargs.get("temperature", 0.0)
-        
         draft_block_size = kwargs.get("draft_block_size", 8)
         template_min_tokens = kwargs.get("template_min_tokens", 1)
         trace = kwargs.get("trace", False)
@@ -176,26 +235,9 @@ class LlamaCppBackend(BaseInferenceBackend):
         start_time = time.perf_counter()
         
         try:
-            import numpy as np
-            
-            def greedy_sample():
-                return int(np.argmax(self.llm.scores[self.llm.n_tokens - 1, :]))
-                
             stop_id = self.llm.token_eos()
-            
-            # Load state and eval suffix
-            suffix_tokens = self.tokenize(prompt_or_suffix)
-            if state is not None:
-                self.llm.load_state(state)
-            else:
-                self.llm.reset()
-                if hasattr(self.llm._ctx, "kv_cache_clear"):
-                    self.llm._ctx.kv_cache_clear()
-                suffix_tokens = self.tokenize(full_prompt)
-                
-            n_batch = getattr(self.llm, "n_batch", 512)
-            for i in range(0, len(suffix_tokens), n_batch):
-                self.llm.eval(suffix_tokens[i : i + n_batch])
+            suffix_tokens = self._load_session_state(state, full_prompt, prompt_or_suffix)
+            self._eval_chunked(suffix_tokens)
                 
             suffix_prefill_sec = time.perf_counter() - start_time
             decode_start = time.perf_counter()
@@ -204,22 +246,32 @@ class LlamaCppBackend(BaseInferenceBackend):
             accepted = 0
             drafted = 0
             rejected = 0
+            sample_count = 0
             fallback_used = False
             candidate_name = None
             
-            first_id = greedy_sample()
+            metrics = {
+                "C_verify_sec": 0.0,
+                "C_save_state_sec": 0.0,
+                "C_load_state_sec": 0.0,
+                "C_eval_block_sec": 0.0,
+                "sample_count": 0,
+            }
+            
+            first_id = self._greedy_sample()
+            metrics["sample_count"] += 1
             
             if first_id != stop_id:
                 out_tokens.append(first_id)
                 self.llm.eval([first_id])
                 
-                # Setup Template Draft
                 candidate_ids = []
                 if template_min_tokens > 0 and draft_block_size > 0:
                     try:
                         from experiments.template_draft_runtime import CandidateRegistry
                         from experiments import template_draft_engine as engine
-                        registry = CandidateRegistry(json_path=self.candidate_json_path)
+                        template_json_path = kwargs.get("candidate_json_path", self.candidate_json_path)
+                        registry = CandidateRegistry(json_path=template_json_path)
                         
                         class DummyTokenizer:
                             def encode(self, text): return self.backend.tokenize(text)
@@ -251,47 +303,26 @@ class LlamaCppBackend(BaseInferenceBackend):
                         block = candidate_ids[cursor : cursor + min(draft_block_size, remaining)]
                         
                     if not block:
-                        # Greedy fallback
-                        tid = greedy_sample()
-                        if tid == stop_id:
-                            break
-                        out_tokens.append(tid)
-                        self.llm.eval([tid])
-                        continue
+                        while len(out_tokens) < max_tokens:
+                            tid = self._greedy_sample()
+                            metrics["sample_count"] += 1
+                            if tid == stop_id:
+                                break
+                            out_tokens.append(tid)
+                            self.llm.eval([tid])
+                        break
                         
                     drafted += len(block)
-                    target_id = greedy_sample()
+                    accepted_tokens = self._verify_candidate_block(block, trace, metrics)
                     
-                    if target_id != block[0]:
-                        if trace: print(f"trace: mismatch at block[0]: target={target_id} block[0]={block[0]}")
+                    if len(accepted_tokens) != len(block):
                         rejected += 1
                         fallback_used = True
                         template_disabled = True
                         candidate_ids = []
-                        continue
-                        
-                    # Save state for rollback
-                    block_state = self.llm.save_state()
-                    self.llm.eval(block)
-                    
-                    match = True
-                    for i in range(len(block) - 1):
-                        pred = int(np.argmax(self.llm.scores[self.llm.n_tokens - len(block) + i, :]))
-                        if pred != block[i+1]:
-                            if trace: print(f"trace: mismatch inside block at i={i}: pred={pred} block[{i+1}]={block[i+1]}")
-                            match = False
-                            self.llm.load_state(block_state)
-                            accepted_tokens = block[:i+1]
-                            self.llm.eval(accepted_tokens)
+                        if accepted_tokens:
                             out_tokens.extend(accepted_tokens)
                             accepted += len(accepted_tokens)
-                            rejected += 1
-                            fallback_used = True
-                            template_disabled = True
-                            candidate_ids = []
-                            break
-                            
-                    if not match:
                         continue
                         
                     out_tokens.extend(block)
@@ -325,8 +356,10 @@ class LlamaCppBackend(BaseInferenceBackend):
                     "accepted": accepted,
                     "drafted": drafted,
                     "rejected": rejected,
+                    "sample_count": metrics["sample_count"],
                     "candidate_name": candidate_name,
-                    "fallback_used": fallback_used
+                    "fallback_used": fallback_used,
+                    **metrics
                 }
             )
             

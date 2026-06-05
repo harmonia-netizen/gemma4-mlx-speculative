@@ -82,7 +82,8 @@ def main():
         model_path=args.model,
         n_ctx=args.n_ctx,
         n_gpu_layers=args.n_gpu_layers,
-        verbose=False
+        verbose=False,
+        candidate_json_path="experiments/template_candidates_gguf_qwen.json"
     )
     # Reinitialize to override logits_all
     backend.llm = llama_cpp.Llama(
@@ -121,7 +122,7 @@ def main():
                 res = backend.generate(None, full_prompt, max_tokens=args.max_tokens, template_min_tokens=0, draft_block_size=0)
                 baseline_results.append(res)
                 if not args.json:
-                    print(f"elapsed={res.elapsed_sec:.3f}s decode={res.metadata.get('decode_sec', 0.0):.3f}s tokens={res.completion_tokens}")
+                    print(f"elapsed={res.elapsed_sec:.3f}s decode={res.metadata.get('decode_sec', 0.0):.3f}s tokens={res.completion_tokens} error={res.error}")
                     print(f"TEXT: {repr(res.text)}")
                     
             # B. prefix reuse greedy
@@ -181,8 +182,20 @@ def main():
                 "C_drafted": sum(r.metadata.get("drafted", 0) for r in reuse_draft_results),
                 "C_accepted": sum(r.metadata.get("accepted", 0) for r in reuse_draft_results),
                 "C_rejected": sum(r.metadata.get("rejected", 0) for r in reuse_draft_results),
+                "B_decode_sec": sum(r.metadata.get("decode_sec", 0.0) for r in reuse_greedy_results),
+                "C_decode_sec": sum(r.metadata.get("decode_sec", 0.0) for r in reuse_draft_results),
                 "B_exact_decode": reuse_greedy_results[0].metadata.get("decode_sec", 0.0),
                 "C_exact_decode": reuse_draft_results[0].metadata.get("decode_sec", 0.0),
+                "B_total_elapsed": sum(r.elapsed_sec for r in reuse_greedy_results),
+                "C_total_elapsed": sum(r.elapsed_sec for r in reuse_draft_results),
+                "C_vs_B_decode_speedup": reuse_greedy_results[0].metadata.get("decode_sec", 0.0) / reuse_draft_results[0].metadata.get("decode_sec", 1.0) if reuse_draft_results[0].metadata.get("decode_sec", 0.0) > 0 else 0,
+                "C_vs_B_elapsed_speedup": sum(r.elapsed_sec for r in reuse_greedy_results) / sum(r.elapsed_sec for r in reuse_draft_results) if sum(r.elapsed_sec for r in reuse_draft_results) > 0 else 0,
+                "C_verify_sec": sum(r.metadata.get("C_verify_sec", 0.0) for r in reuse_draft_results),
+                "C_save_state_sec": sum(r.metadata.get("C_save_state_sec", 0.0) for r in reuse_draft_results),
+                "C_load_state_sec": sum(r.metadata.get("C_load_state_sec", 0.0) for r in reuse_draft_results),
+                "C_eval_block_sec": sum(r.metadata.get("C_eval_block_sec", 0.0) for r in reuse_draft_results),
+                "B_sample_count": sum(r.metadata.get("sample_count", 0) for r in reuse_greedy_results),
+                "C_sample_count": sum(r.metadata.get("sample_count", 0) for r in reuse_draft_results),
             })
             
     except SystemExit:

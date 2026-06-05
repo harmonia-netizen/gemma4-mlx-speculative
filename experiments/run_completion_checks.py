@@ -92,7 +92,11 @@ def main():
                 print("[ERROR] mismatch_token_match != True")
                 sys.exit(1)
                 
-            print(f"[OK] GGUF Template Draft Validation (accepted={r['C_accepted']}/{r['C_drafted']})")
+            if r.get("C_vs_B_decode_speedup", 0) <= 1.0:
+                print(f"[ERROR] C_vs_B_decode_speedup ({r.get('C_vs_B_decode_speedup')}) <= 1.0")
+                sys.exit(1)
+                
+            print(f"[OK] GGUF Template Draft Validation (accepted={r['C_accepted']}/{r['C_drafted']}, decode_speedup={r['C_vs_B_decode_speedup']:.2f}x)")
         except Exception as e:
             print(f"[ERROR] Failed to parse or validate JSON output: {e}")
             print(res.stdout)
