@@ -45,12 +45,12 @@ def test_clear_session_behavior():
     mock_processor.tokenizer = mock.Mock()
     mock_processor.tokenizer.encode = lambda x: [1, 2, 3] # fake tokens
     
-    # Patch d.load in session_cache_api
-    with mock.patch("experiments.session_cache_api.d.load", return_value=(mock_model, mock_processor)):
-        api = SessionCacheAPI(model_path="dummy", candidate_json_path="experiments/template_candidates.json")
+    # Patch d.load in mlx_backend
+    with mock.patch("gemma4_mlx_runtime.mlx_backend.d.load", return_value=(mock_model, mock_processor)):
+        api = SessionCacheAPI.load(model_path="dummy", candidate_json_path="experiments/template_candidates.json", backend="mlx")
         
         # We need to mock PrefixCacheManager.get_or_create to return a dummy entry
-        from template_draft_runtime import PrefixCacheEntry
+        from experiments.template_draft_runtime import PrefixCacheEntry
         import time
         dummy_entry = PrefixCacheEntry(
             text_hash="hash1",
@@ -62,37 +62,37 @@ def test_clear_session_behavior():
             last_used_at=time.time(),
             hit_count=0
         )
-        api.runtime.prefix_manager.get_or_create = mock.Mock(return_value=dummy_entry)
+        api.backend.runtime.prefix_manager.get_or_create = mock.Mock(return_value=dummy_entry)
         
         # Test create_session
         res = api.create_session("sess1", "hello")
         assert res["ok"]
         
         # Explicitly add entry to manager since get_or_create is mocked
-        api.runtime.prefix_manager.entries["hash1"] = dummy_entry
-        api.runtime.prefix_manager.current_total_tokens += 3
+        api.backend.runtime.prefix_manager.entries["hash1"] = dummy_entry
+        api.backend.runtime.prefix_manager.current_total_tokens += 3
         
         # Test clear_session(drop_cache=False)
         clear_res1 = api.clear_session("sess1", drop_cache=False)
         assert clear_res1["ok"]
         assert clear_res1["dropped_cache"] is False
-        assert "sess1" not in api.runtime.sessions
-        assert "hash1" in api.runtime.prefix_manager.entries # Cache remains
+        assert "sess1" not in api.backend.runtime.sessions
+        assert "hash1" in api.backend.runtime.prefix_manager.entries # Cache remains
         
         # Test clear_session(drop_cache=True)
         res = api.create_session("sess2", "hello")
-        api.runtime.prefix_manager.entries["hash1"] = dummy_entry
+        api.backend.runtime.prefix_manager.entries["hash1"] = dummy_entry
         
         clear_res2 = api.clear_session("sess2", drop_cache=True)
         assert clear_res2["ok"]
         assert clear_res2["dropped_cache"] is True
-        assert "hash1" not in api.runtime.prefix_manager.entries # Cache dropped
+        assert "hash1" not in api.backend.runtime.prefix_manager.entries # Cache dropped
         
         # Test evicted session generate
         res = api.create_session("sess3", "hello")
-        api.runtime.prefix_manager.entries["hash1"] = dummy_entry
+        api.backend.runtime.prefix_manager.entries["hash1"] = dummy_entry
         # Evict manually
-        api.runtime.prefix_manager.entries.pop("hash1")
+        api.backend.runtime.prefix_manager.entries.pop("hash1")
         
         gen_res = api.generate("sess3", "suffix")
         assert not gen_res["ok"]

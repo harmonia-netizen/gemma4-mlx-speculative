@@ -5,7 +5,10 @@ def run_cmd(cmd: str):
     print(f"\n========================================")
     print(f"Running: {cmd}")
     print(f"========================================")
-    res = subprocess.run(cmd, shell=True)
+    import os
+    env = os.environ.copy()
+    env["PYTHONPATH"] = "."
+    res = subprocess.run(cmd, shell=True, env=env)
     if res.returncode != 0:
         print(f"\n[ERROR] Command failed with exit code {res.returncode}: {cmd}")
         sys.exit(res.returncode)
@@ -14,7 +17,7 @@ def run_cmd(cmd: str):
 def main():
     commands = [
         # 1. Compile checks
-        ".venv/bin/python -m py_compile gemma4_mlx_runtime/__init__.py gemma4_mlx_runtime/session_cache.py gemma4_mlx_runtime/memory.py gemma4_mlx_runtime/candidates.py gemma4_mlx_runtime/package_info.py experiments/template_draft_runtime.py experiments/session_cache_runtime.py experiments/session_cache_api.py experiments/session_cache_core.py experiments/session_cache_memory.py experiments/session_cache_package.py experiments/agent_mock_runtime.py experiments/test_memory_stats.py experiments/benchmark_memory_stats.py",
+        ".venv/bin/python -m py_compile gemma4_mlx_runtime/__init__.py gemma4_mlx_runtime/session_cache.py gemma4_mlx_runtime/memory.py gemma4_mlx_runtime/candidates.py gemma4_mlx_runtime/package_info.py gemma4_mlx_runtime/backends.py gemma4_mlx_runtime/mlx_backend.py gemma4_mlx_runtime/llama_cpp_backend.py experiments/template_draft_runtime.py experiments/session_cache_runtime.py experiments/session_cache_api.py experiments/session_cache_core.py experiments/session_cache_memory.py experiments/session_cache_package.py experiments/agent_mock_runtime.py experiments/test_memory_stats.py experiments/benchmark_memory_stats.py experiments/benchmark_llama_cpp_backend.py experiments/test_backend_interface.py experiments/test_llama_cpp_backend_light.py",
         
         # 2. Unit tests
         ".venv/bin/python experiments/test_prefix_cache_manager.py",
@@ -22,6 +25,8 @@ def main():
         ".venv/bin/python experiments/test_session_cache_api.py",
         ".venv/bin/python experiments/test_agent_mock_runtime.py",
         ".venv/bin/python experiments/test_memory_stats.py",
+        ".venv/bin/python experiments/test_backend_interface.py",
+        ".venv/bin/python experiments/test_llama_cpp_backend_light.py",
         
         # 3. Benchmarks
         ".venv/bin/python experiments/benchmark_session_cache_api.py --repeat-lines 200 --max-tokens 16",

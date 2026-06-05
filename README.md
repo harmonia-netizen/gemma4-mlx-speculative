@@ -4,26 +4,33 @@ This repository contains an experimental runtime for local inference acceleratio
 
 **Status:** Experimental runtime (Not a production package)
 
-## Package Entrypoint
+## Package Entrypoint & Backends
 
 You can import the runtime components via the experimental package entrypoint:
 
 ```python
 from gemma4_mlx_runtime import SessionCacheAPI, get_memory_stats
 
-api = SessionCacheAPI()
+# MLX Backend (Default: Template Draft + Prefix/Session cache + snapshot/restore)
+api_mlx = SessionCacheAPI.load("mlx-community/gemma-4-26b-a4b-it-8bit", backend="mlx")
+
+# GGUF / llama.cpp Backend (Initial generation/session API support via llama-cpp-python)
+api_gguf = SessionCacheAPI.load("/path/to/model.gguf", backend="llama_cpp")
+
 stats = get_memory_stats()
 ```
 
-## Core Features
+### Supported Backends
+1. **MLX Backend (`backend="mlx"`)**: Full support for Template Draft fast-path, KV snapshot/restore, and Long Input Guard. Verified primarily with Gemma 4 MLX models.
+2. **GGUF Backend (`backend="llama_cpp"`)**: Uses `llama-cpp-python`. **Limitations:** Template verification is currently disabled. Exact KV snapshot/rollback is not implemented. Prefix cache reuse depends on future llama.cpp slot integration.
+
+## Core Features (MLX Backend)
 
 This project focuses on three main architectural directions:
 
-1. **Template Candidate + Target Verification**: Instead of using a smaller draft model (which incurred high overhead), this runtime uses predefined "template candidates" (e.g., fixed bash commands). The engine verifies these candidates against the target model in a single batch, providing significant speedups for highly predictable outputs.
+1. **Template Candidate + Target Verification**: Instead of using a smaller draft model, this runtime uses predefined "template candidates". The engine verifies these candidates against the target model in a single batch, providing significant speedups for highly predictable outputs.
 2. **Prefix / Session Cache Reuse**: Evaluates and caches long shared context prefixes (KV cache). The engine can restore this snapshot for subsequent multi-turn requests, reducing repeated prefill work.
 3. **Long Input Guard**: Built-in capacity guard that monitors and restricts prompt lengths to prevent out-of-memory (OOM) crashes on Apple Silicon.
-
-*Note: MTP (Multi-Token Prediction) and small-model lightweight drafts were explored but are not adopted in the current iteration.*
 
 ## Quick Start & Verification
 
@@ -32,7 +39,7 @@ This project focuses on three main architectural directions:
 python experiments/run_completion_checks.py
 ```
 
-**2. Run the Template Draft & Session Cache benchmark:**
+**2. Run the Template Draft & Session Cache benchmark (MLX):**
 ```bash
 python experiments/benchmark_template_draft_runtime.py \
   --repeat-lines 500 \

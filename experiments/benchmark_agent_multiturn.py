@@ -39,7 +39,7 @@ def main():
     args = parser.parse_args()
 
     print("--- 1. Init API ---")
-    api = SessionCacheAPI(safe_token_limit=args.safe_token_limit, step_size=args.step_size)
+    api = SessionCacheAPI.load(safe_token_limit=args.safe_token_limit, step_size=args.step_size)
 
     base_line = "User: We need to debug the speculative decoding issue.\nAsst: I'll check the current status and run tests.\n"
     prefix_text = base_line * args.repeat_lines

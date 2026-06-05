@@ -2,7 +2,7 @@ from session_cache_package import SessionCacheAPI
 
 class AgentMockRuntime:
     def __init__(self, safe_token_limit: int = 120000, step_size: int = 512, target_model: str = None, candidate_json_path: str = None):
-        self.api = SessionCacheAPI(
+        self.api = SessionCacheAPI.load(
             model_path=target_model or "mlx-community/gemma-4-26b-a4b-it-8bit",
             candidate_json_path=candidate_json_path or "experiments/template_candidates.json",
             safe_token_limit=safe_token_limit,

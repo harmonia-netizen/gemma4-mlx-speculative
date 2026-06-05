@@ -11,7 +11,7 @@ def main():
     args = parser.parse_args()
 
     print("--- 1. Init API ---")
-    api = SessionCacheAPI(safe_token_limit=120000)
+    api = SessionCacheAPI.load(safe_token_limit=120000)
 
     base_line = "User: Can you show me the test plan?\nAsst: I will check the tests and then show you the git diff.\n"
     prefix_text = base_line * args.repeat_lines
