@@ -77,6 +77,31 @@ python -m local_speculative_runtime.cli \
 ```
 *Note: For GGUF, either `--model-type` or `--candidate-json` is strictly required. The built-in preset is currently `qwen` only; other models require specifying their specific candidate rules via `--candidate-json`.*
 
+## OpenAI-Compatible API
+
+The runtime includes an experimental OpenAI-compatible API server. Currently, it supports non-streaming `/v1/chat/completions`.
+
+**Start the Server:**
+```bash
+# MLX Backend
+LSR_BACKEND=mlx LSR_MODEL="mlx-community/gemma-4-26b-a4b-it-8bit" python -m local_speculative_runtime.openai_api
+
+# GGUF Backend
+LSR_BACKEND=llama_cpp LSR_MODEL="/path/to/model.gguf" LSR_MODEL_TYPE="qwen" python -m local_speculative_runtime.openai_api
+```
+
+**cURL Example:**
+```bash
+curl http://localhost:8000/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "local",
+    "messages": [{"role": "user", "content": "Return exactly: OK"}],
+    "max_tokens": 16
+  }'
+```
+*Note: `stream: true` is not supported yet and will return a 400 error. For GGUF backends, `LSR_MODEL_TYPE` or `LSR_CANDIDATE_JSON` must be specified.*
+
 ## Quick Start & Verification
 
 
