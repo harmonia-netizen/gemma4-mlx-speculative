@@ -27,7 +27,7 @@
     "name": "git_diff_command",
     "match_keywords": ["gitの差分を確認", "git diff"],
     "text": "```bash\ngit diff\n```",
-    "confidence": 0.75,
+    "confidence": 0.85,
     "min_tokens": 5,
     "tags": ["short", "bash", "git"]
   },
@@ -35,14 +35,14 @@
     "name": "git_add_status_commit_plan",
     "match_keywords": ["変更をコミットしたい", "git add", "git commit"],
     "text": "```bash\ngit add .\ngit status --short\ngit commit -m \"Update\"\n```",
-    "confidence": 0.85,
+    "confidence": 0.50,
     "min_tokens": 10,
     "tags": ["exact", "bash", "git"]
   },
   {
     "name": "safe_check_plan",
     "match_keywords": ["安全な確認手順", "ls", "pwd"],
-    "text": "```bash\npwd\nls -la\n```",
+    "text": "```bash\ngit status --short\ngit diff --stat\npython -m py_compile experiments/template_draft_runtime.py experiments/session_cache_runtime.py\n```",
     "confidence": 0.90,
     "min_tokens": 8,
     "tags": ["exact", "bash", "sys"]
@@ -50,7 +50,7 @@
   {
     "name": "python_compile_check",
     "match_keywords": ["pythonのコンパイル確認", "py_compile"],
-    "text": "```bash\npython -m py_compile *.py\n```",
+    "text": "```bash\npython -m py_compile experiments/template_draft_runtime.py experiments/session_cache_runtime.py\n```",
     "confidence": 0.85,
     "min_tokens": 6,
     "tags": ["exact", "bash", "python"]

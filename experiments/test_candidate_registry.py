@@ -47,6 +47,17 @@ pytest --tb=short"""
     assert c5 is not None
     assert c5.name == "safe_check_plan"
 
+    # 6. python_compile_check
+    user_prompt_compile = "pythonのコンパイル確認のため py_compile"
+    c6 = registry.select_candidate(user_prompt_compile, tokenizer, min_tokens=1)
+    assert c6 is not None
+    assert c6.name == "python_compile_check"
+
+    # 7. git_add_status_commit_plan (low confidence -> None)
+    user_prompt_commit = "変更をコミットしたいので git add と git commit して"
+    c7 = registry.select_candidate(user_prompt_commit, tokenizer, min_tokens=1)
+    assert c7 is None, "Expected None due to lowered confidence for git_add_commit"
+
     print("  OK")
 
 if __name__ == "__main__":

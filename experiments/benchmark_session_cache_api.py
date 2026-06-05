@@ -1,6 +1,7 @@
 import argparse
 import time
 from session_cache_api import SessionCacheAPI
+from session_cache_memory import get_memory_stats, format_memory_stats
 
 def main():
     parser = argparse.ArgumentParser()
@@ -21,6 +22,7 @@ def main():
     start = time.perf_counter()
     create_res = api.create_session(session_id, prefix_text)
     print(f"create result: {create_res}")
+    print(format_memory_stats(get_memory_stats()))
     
     if not create_res["ok"]:
         return
@@ -48,6 +50,7 @@ def main():
     print(f"fallback_used: {gen_res.get('fallback_used')}")
     print(f"decode_sec: {gen_res.get('decode_sec'):.3f}s")
     print(f"text: {repr(gen_res.get('text'))}")
+    print(format_memory_stats(get_memory_stats()))
 
     print("\n--- 5. Clear Session ---")
     clear_res = api.clear_session(session_id)
@@ -55,6 +58,7 @@ def main():
     
     print("\n--- 6. Final Stats ---")
     print(f"stats: {api.stats()}")
+    print(format_memory_stats(get_memory_stats()))
 
     print("\nOK: benchmark_session_cache_api completed")
 

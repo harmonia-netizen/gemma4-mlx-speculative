@@ -7,6 +7,7 @@ import mlx.core as mx
 import template_draft_engine as engine
 from template_draft_runtime import LongInputGuard, PrefixCacheManager, CandidateRegistry
 from session_cache_runtime import SessionCacheRuntime
+from session_cache_memory import get_memory_stats, format_memory_stats
 
 d = importlib.import_module("mlx_vlm.generate.dispatch")
 
@@ -90,6 +91,7 @@ def main():
         return
         
     print(f"prefix_prefill_sec: {create_res.prefix_prefill_sec:.3f}s")
+    print(format_memory_stats(get_memory_stats()))
     
     print("\n--- 2. Generate With Suffix ---")
     user_prompt = SUFFIX_CASES[args.case]
@@ -114,9 +116,11 @@ def main():
     print(f"suffix_prefill_sec: {res.suffix_prefill_sec:.3f}s")
     print(f"decode_sec: {res.decode_sec:.3f}s")
     print(f"elapsed_excluding_prefix: {res.elapsed_sec:.3f}s")
+    print(f"candidate_name: {res.candidate_name}")
     print(f"accepted/drafted/rejected: {res.accepted}/{res.drafted}/{res.rejected}")
     print(f"fallback_used: {res.fallback_used}")
     print(f"output snippet: {repr(res.text)}")
+    print(format_memory_stats(get_memory_stats()))
     
     print("\nOK: session 100k probe completed")
 
