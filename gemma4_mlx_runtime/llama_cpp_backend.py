@@ -6,7 +6,7 @@ from .backends import BaseInferenceBackend, BackendCapabilities, GenerationResul
 class LlamaCppBackend(BaseInferenceBackend):
     backend_name = "llama_cpp"
 
-    def __init__(self, model_path: str, n_ctx: int = 2048, n_gpu_layers: int = -1, n_threads: Optional[int] = None, seed: int = 1337, verbose: bool = False, chat_format: Optional[str] = None):
+    def __init__(self, model_path: str, n_ctx: int = 2048, n_gpu_layers: int = -1, n_threads: Optional[int] = None, seed: int = 1337, verbose: bool = False, chat_format: Optional[str] = None, auto_load: bool = True):
         self.model_path = model_path
         self.n_ctx = n_ctx
         self.n_gpu_layers = n_gpu_layers
@@ -27,7 +27,8 @@ class LlamaCppBackend(BaseInferenceBackend):
             self.load_error = f"llama-cpp-python is not installed: {e}"
             return
             
-        self.load()
+        if auto_load:
+            self.load()
 
     def capabilities(self) -> BackendCapabilities:
         return BackendCapabilities(
@@ -96,6 +97,7 @@ class LlamaCppBackend(BaseInferenceBackend):
         self.sessions[session_id] = {
             "prefix_text": prefix_text,
             "created_at": time.time(),
+            "last_used_at": time.time(),
             "turn_count": 0
         }
         
@@ -107,7 +109,11 @@ class LlamaCppBackend(BaseInferenceBackend):
             "cache_key": session_id,
             "guard_allowed": True,
             "guard_reason": "",
-            "evicted_keys": []
+            "evicted_keys": [],
+            "metadata": {
+                "backend_capabilities": self.capabilities().__dict__,
+                "prefix_cache_mode": "text-concat"
+            }
         }
 
     def generate(self, session_id: Optional[str], prompt_or_suffix: str, max_tokens: int = 16, **kwargs) -> GenerationResult:
@@ -120,12 +126,15 @@ class LlamaCppBackend(BaseInferenceBackend):
         temperature = kwargs.get("temperature", 0.0)
         
         full_prompt = prompt_or_suffix
+        session_turn_count = 0
         if session_id:
             if session_id not in self.sessions:
                 return GenerationResult(False, "", [], 0.0, None, None, f"Session {session_id} not found", self.backend_name, {})
                 
             session_state = self.sessions[session_id]
             session_state["turn_count"] += 1
+            session_state["last_used_at"] = time.time()
+            session_turn_count = session_state["turn_count"]
             full_prompt = session_state["prefix_text"] + "\n" + prompt_or_suffix
             
         start_time = time.perf_counter()
@@ -155,7 +164,14 @@ class LlamaCppBackend(BaseInferenceBackend):
                 error=None,
                 backend=self.backend_name,
                 metadata={
-                    "finish_reason": response["choices"][0].get("finish_reason")
+                    "finish_reason": response["choices"][0].get("finish_reason"),
+                    "temperature": temperature,
+                    "n_ctx": self.n_ctx,
+                    "n_gpu_layers": self.n_gpu_layers,
+                    "session_turn_count": session_turn_count,
+                    "prefix_cache_mode": "text-concat",
+                    "template_verify_enabled": False,
+                    "snapshot_restore_enabled": False
                 }
             )
             
@@ -166,16 +182,29 @@ class LlamaCppBackend(BaseInferenceBackend):
     def clear_session(self, session_id: str, drop_cache: bool = False) -> Dict[str, Any]:
         if session_id in self.sessions:
             del self.sessions[session_id]
-            return {"ok": True, "session_id": session_id, "dropped_cache": drop_cache, "cache_key": None, "error": None}
+            return {
+                "ok": True, 
+                "session_id": session_id, 
+                "dropped_cache": drop_cache, 
+                "cache_key": None, 
+                "error": None,
+                "metadata": {
+                    "note": "drop_cache is session bookkeeping only for llama_cpp backend"
+                }
+            }
         return {"ok": False, "session_id": session_id, "dropped_cache": False, "cache_key": None, "error": f"Session {session_id} not found"}
 
     def stats(self) -> Dict[str, Any]:
         return {
+            "backend": self.backend_name,
             "sessions": len(self.sessions),
             "loaded": self.llm is not None,
             "available": self.available,
             "load_error": self.load_error,
             "model_path": self.model_path,
             "n_ctx": self.n_ctx,
-            "capabilities": self.capabilities().__dict__
+            "n_gpu_layers": self.n_gpu_layers,
+            "n_threads": self.n_threads,
+            "capabilities": self.capabilities().__dict__,
+            "session_ids": list(self.sessions.keys())
         }

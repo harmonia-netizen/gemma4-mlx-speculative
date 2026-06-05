@@ -22,7 +22,7 @@ stats = get_memory_stats()
 
 ### Supported Backends
 1. **MLX Backend (`backend="mlx"`)**: Full support for Template Draft fast-path, KV snapshot/restore, and Long Input Guard. Verified primarily with Gemma 4 MLX models.
-2. **GGUF Backend (`backend="llama_cpp"`)**: Uses `llama-cpp-python`. **Limitations:** Template verification is currently disabled. Exact KV snapshot/rollback is not implemented. Prefix cache reuse depends on future llama.cpp slot integration.
+2. **GGUF Backend (`backend="llama_cpp"`)**: Uses `llama-cpp-python`. GGUF backend has been smoke-tested locally with one Qwen3.6 35B Q4_K GGUF model via llama-cpp-python. This confirms load/session/generation API compatibility, not Template Draft or exact KV snapshot/restore support.
 
 ## Core Features (MLX Backend)
 
