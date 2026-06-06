@@ -5,7 +5,7 @@ import uuid
 import logging
 from typing import List, Optional, Dict, Any
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, Response
 from pydantic import BaseModel, Field
 import uvicorn
 
@@ -58,6 +58,17 @@ class ChatCompletionResponse(BaseModel):
 
 # --- Helper Functions ---
 
+class ModelObject(BaseModel):
+    id: str
+    object: str = "model"
+    created: int
+    owned_by: str = "local-speculative-runtime"
+
+class ModelList(BaseModel):
+    object: str = "list"
+    data: List[ModelObject]
+
+
 def format_messages_to_prompt(messages: List[ChatMessage]) -> str:
     """
     Very basic message to prompt conversion.
@@ -84,6 +95,7 @@ def create_app(api: Optional[SessionCacheAPI] = None) -> FastAPI:
     # This prevents loading the model during test collection or module import
     app.state.api = api
     app.state.api_initialized = False if api is None else True
+    app.state.model_id = os.environ.get("LSR_MODEL", "local-model")
     
     def get_api() -> SessionCacheAPI:
         if not app.state.api_initialized:
@@ -107,10 +119,21 @@ def create_app(api: Optional[SessionCacheAPI] = None) -> FastAPI:
             app.state.api_initialized = True
         return app.state.api
 
+    @app.get("/v1/models", response_model=ModelList)
+    async def list_models():
+        return ModelList(
+            data=[
+                ModelObject(
+                    id=app.state.model_id,
+                    created=int(time.time())
+                )
+            ]
+        )
+
     @app.post("/v1/chat/completions", response_model=ChatCompletionResponse)
-    async def chat_completions(request: ChatCompletionRequest):
+    async def chat_completions(request: ChatCompletionRequest, response: Response):
         if request.stream:
-            raise HTTPException(status_code=400, detail="Streaming is not supported yet.")
+            response.headers["X-LSR-Warning"] = "stream=true is not supported; returned non-streaming response"
             
         # 1. Convert messages to prompt string
         # Typically the system prompt or long history goes into the prefix

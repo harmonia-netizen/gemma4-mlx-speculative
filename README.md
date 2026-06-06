@@ -79,7 +79,7 @@ python -m local_speculative_runtime.cli \
 
 ## OpenAI-Compatible API
 
-The runtime includes an experimental OpenAI-compatible API server. Currently, it supports non-streaming `/v1/chat/completions`.
+The runtime includes an experimental OpenAI-compatible API server. Currently, it supports `/v1/models` and non-streaming `/v1/chat/completions`.
 
 **Start the Server:**
 ```bash
@@ -88,6 +88,14 @@ LSR_BACKEND=mlx LSR_MODEL="mlx-community/gemma-4-26b-a4b-it-8bit" python -m loca
 
 # GGUF Backend
 LSR_BACKEND=llama_cpp LSR_MODEL="/path/to/model.gguf" LSR_MODEL_TYPE="qwen" python -m local_speculative_runtime.openai_api
+```
+
+**Smoke Test (Optional):**
+You can use the built-in smoke test script to verify that the server endpoints (`/v1/models` and `/v1/chat/completions`) work correctly with your configured model.
+If `LSR_MODEL` is not set, the script will simply skip testing and exit.
+```bash
+PYTHONPATH=. LSR_BACKEND=gguf LSR_MODEL="$HOME/Documents/model.gguf" LSR_MODEL_TYPE=qwen \
+  .venv/bin/python experiments/smoke_openai_api.py
 ```
 
 **cURL Example:**
@@ -100,7 +108,7 @@ curl http://localhost:8000/v1/chat/completions \
     "max_tokens": 16
   }'
 ```
-*Note: `stream: true` is not supported yet and will return a 400 error. For GGUF backends, `LSR_MODEL_TYPE` or `LSR_CANDIDATE_JSON` must be specified.*
+*Note: Streaming is not implemented yet. However, if `stream: true` is requested, the server will process it as a non-streaming fallback and return a normal JSON response with the `X-LSR-Warning: stream=true is not supported; returned non-streaming response` header. For GGUF backends, `LSR_MODEL_TYPE` or `LSR_CANDIDATE_JSON` must be specified.*
 
 ## Quick Start & Verification
 
