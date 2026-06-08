@@ -75,11 +75,11 @@ class LlamaCppBackend(BaseInferenceBackend):
         except Exception as e:
             self.load_error = str(e)
 
-    def tokenize(self, text: str) -> List[int]:
+    def tokenize(self, text: str, add_bos: bool = False) -> List[int]:
         if not self.llm:
             return []
         try:
-            return self.llm.tokenize(text.encode("utf-8"), add_bos=False, special=True)
+            return self.llm.tokenize(text.encode("utf-8"), add_bos=add_bos, special=True)
         except Exception:
             return []
 
@@ -106,20 +106,36 @@ class LlamaCppBackend(BaseInferenceBackend):
 
     def _greedy_sample(self) -> int:
         import numpy as np
-        return int(np.argmax(self.llm.scores[self.llm.n_tokens - 1, :]))
+        import llama_cpp
+        last_idx = self.llm._batch.n_tokens() - 1
+        logits_ptr = llama_cpp.llama_get_logits_ith(self.llm.ctx, last_idx)
+        logits = np.ctypeslib.as_array(logits_ptr, shape=(self.llm.n_vocab(),))
+        
+        return int(np.argmax(logits))
 
     def _load_session_state(self, state: Any, full_prompt: str, prompt_or_suffix: str) -> List[int]:
         if state is not None:
             self.llm.load_state(state)
-            return self.tokenize(prompt_or_suffix)
+            return self.tokenize(prompt_or_suffix, add_bos=False)
         else:
             self._clear_context()
-            return self.tokenize(full_prompt)
+            return self.tokenize(full_prompt, add_bos=True)
 
     def _generate_greedy_tokens(self, out_tokens: List[int], max_tokens: int, stop_id: int) -> None:
+        import llama_cpp
+        has_is_eog = hasattr(llama_cpp, "llama_vocab_is_eog")
+        vocab = self.llm._model.vocab if has_is_eog else None
+        
         while len(out_tokens) < max_tokens:
             tid = self._greedy_sample()
+            
+            is_stop = False
             if tid == stop_id:
+                is_stop = True
+            elif has_is_eog and llama_cpp.llama_vocab_is_eog(vocab, tid):
+                is_stop = True
+                
+            if is_stop:
                 break
             out_tokens.append(tid)
             self.llm.eval([tid])
@@ -177,7 +193,13 @@ class LlamaCppBackend(BaseInferenceBackend):
             
         start_time = time.perf_counter()
         
-        tokens_prefix = self.tokenize(prefix_text)
+        if self.llm:
+            model_type = str(self.llm.metadata.get("tokenizer.ggml.model", "")).lower()
+            if "gemma" in model_type:
+                if "System:" not in prefix_text and "<start_of_turn>" not in prefix_text:
+                    prefix_text = f"System: {prefix_text.strip()}\n\n"
+        
+        tokens_prefix = self.tokenize(prefix_text, add_bos=True)
         prompt_tokens = len(tokens_prefix)
         
         if self.llm:
@@ -217,6 +239,12 @@ class LlamaCppBackend(BaseInferenceBackend):
             return GenerationResult(False, "", [], 0.0, None, None, self.load_error, self.backend_name, {})
         if not self.llm:
             return GenerationResult(False, "", [], 0.0, 0, 0, "Model not loaded", self.backend_name, {})
+            
+        if self.llm:
+            model_type = str(self.llm.metadata.get("tokenizer.ggml.model", "")).lower()
+            if "gemma" in model_type:
+                if "User:" not in prompt_or_suffix and "Assistant:" not in prompt_or_suffix and "<start_of_turn>" not in prompt_or_suffix:
+                    prompt_or_suffix = f"User: {prompt_or_suffix.strip()}\n\nAssistant:"
             
         temperature = kwargs.get("temperature", 0.0)
         draft_block_size = kwargs.get("draft_block_size", 8)
@@ -304,6 +332,30 @@ class LlamaCppBackend(BaseInferenceBackend):
             fallback_used = False
             candidate_name = None
             
+            is_gemma = False
+            if self.llm:
+                model_type = str(self.llm.metadata.get("tokenizer.ggml.model", "")).lower()
+                is_gemma = "gemma" in model_type
+                
+            inside_channel = False
+            # Gemma4 GGUF may emit internal channel markers such as
+            # <|channel>thought<channel|> before the final answer.
+            # Keep these tokens in the model context via eval(), but do not
+            # expose them in returned text. Token IDs verified from Gemma4 GGUF.
+            CHANNEL_START_ID = 100
+            CHANNEL_END_ID = 101
+            
+            import llama_cpp
+            has_is_eog = hasattr(llama_cpp, "llama_vocab_is_eog")
+            vocab = self.llm._model.vocab if has_is_eog else None
+            
+            def is_stop_token(tid: int) -> bool:
+                if tid == stop_id:
+                    return True
+                if has_is_eog and llama_cpp.llama_vocab_is_eog(vocab, tid):
+                    return True
+                return False
+            
             metrics = {
                 "C_verify_sec": 0.0,
                 "C_save_state_sec": 0.0,
@@ -315,8 +367,17 @@ class LlamaCppBackend(BaseInferenceBackend):
             first_id = self._greedy_sample()
             metrics["sample_count"] += 1
             
-            if first_id != stop_id:
-                out_tokens.append(first_id)
+            if not is_stop_token(first_id):
+                if is_gemma:
+                    if first_id == CHANNEL_START_ID:
+                        inside_channel = True
+                    elif first_id == CHANNEL_END_ID:
+                        inside_channel = False
+                    elif not inside_channel:
+                        out_tokens.append(first_id)
+                else:
+                    out_tokens.append(first_id)
+                    
                 self.llm.eval([first_id])
                 
                 candidate_ids = []
@@ -360,9 +421,19 @@ class LlamaCppBackend(BaseInferenceBackend):
                         while len(out_tokens) < max_tokens:
                             tid = self._greedy_sample()
                             metrics["sample_count"] += 1
-                            if tid == stop_id:
+                            if is_stop_token(tid):
                                 break
-                            out_tokens.append(tid)
+                                
+                            if is_gemma:
+                                if tid == CHANNEL_START_ID:
+                                    inside_channel = True
+                                elif tid == CHANNEL_END_ID:
+                                    inside_channel = False
+                                elif not inside_channel:
+                                    out_tokens.append(tid)
+                            else:
+                                out_tokens.append(tid)
+                                
                             self.llm.eval([tid])
                         break
                         
@@ -375,11 +446,29 @@ class LlamaCppBackend(BaseInferenceBackend):
                         template_disabled = True
                         candidate_ids = []
                         if accepted_tokens:
-                            out_tokens.extend(accepted_tokens)
+                            if is_gemma:
+                                for tid in accepted_tokens:
+                                    if tid == CHANNEL_START_ID:
+                                        inside_channel = True
+                                    elif tid == CHANNEL_END_ID:
+                                        inside_channel = False
+                                    elif not inside_channel:
+                                        out_tokens.append(tid)
+                            else:
+                                out_tokens.extend(accepted_tokens)
                             accepted += len(accepted_tokens)
                         continue
                         
-                    out_tokens.extend(block)
+                    if is_gemma:
+                        for tid in block:
+                            if tid == CHANNEL_START_ID:
+                                inside_channel = True
+                            elif tid == CHANNEL_END_ID:
+                                inside_channel = False
+                            elif not inside_channel:
+                                out_tokens.append(tid)
+                    else:
+                        out_tokens.extend(block)
                     accepted += len(block)
                     cursor += len(block)
                     
@@ -397,7 +486,7 @@ class LlamaCppBackend(BaseInferenceBackend):
                 error=None,
                 backend=self.backend_name,
                 metadata={
-                    "finish_reason": "stop" if out_tokens and out_tokens[-1] == stop_id else "length",
+                    "finish_reason": "stop" if len(out_tokens) < max_tokens else "length",
                     "temperature": temperature,
                     "n_ctx": self.n_ctx,
                     "n_gpu_layers": self.n_gpu_layers,
