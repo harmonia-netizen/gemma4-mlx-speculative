@@ -47,5 +47,20 @@ class TestCLIArgs(unittest.TestCase):
         res = resolve_candidate_json("gguf", None, "my_custom_candidates.json")
         self.assertEqual(res, "my_custom_candidates.json")
 
+    def test_mlx_generation_mode_fails(self):
+        import subprocess
+        import sys
+        # Run CLI with mlx and generation-mode high-level to test argparse/validation
+        cmd = [
+            sys.executable, "-m", "local_speculative_runtime.cli",
+            "--backend", "mlx",
+            "--model", "dummy",
+            "--generation-mode", "high-level",
+            "--prompt", "hello"
+        ]
+        res = subprocess.run(cmd, capture_output=True, text=True)
+        self.assertNotEqual(res.returncode, 0)
+        self.assertIn("Error: --generation-mode cannot be specified with backend='mlx'", res.stderr)
+
 if __name__ == "__main__":
     unittest.main()

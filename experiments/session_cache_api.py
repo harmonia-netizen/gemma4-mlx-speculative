@@ -33,6 +33,7 @@ class SessionCacheAPI:
             seed = kwargs.get("seed", 1337)
             verbose = kwargs.get("verbose", False)
             chat_format = kwargs.get("chat_format", None)
+            generation_mode = kwargs.get("generation_mode", "low-level")
             impl = LlamaCppBackend(
                 model_path=model_path,
                 n_ctx=n_ctx,
@@ -41,7 +42,8 @@ class SessionCacheAPI:
                 seed=seed,
                 verbose=verbose,
                 chat_format=chat_format,
-                candidate_json_path=candidate_json_path
+                candidate_json_path=candidate_json_path,
+                generation_mode=generation_mode
             )
         else:
             raise ValueError(f"Unknown backend: {backend}")
@@ -79,7 +81,10 @@ class SessionCacheAPI:
             "candidate_name": res.metadata.get("candidate_name", None),
             "fallback_used": res.metadata.get("fallback_used", False),
             "error": res.error,
-            "backend": res.backend
+            "backend": res.backend,
+            "metadata": res.metadata,
+            "prompt_tokens": res.prompt_tokens,
+            "completion_tokens": res.completion_tokens
         }
 
     def clear_session(self, session_id: str, drop_cache: bool = False) -> dict:

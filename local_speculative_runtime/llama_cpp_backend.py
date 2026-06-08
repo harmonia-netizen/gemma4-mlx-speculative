@@ -6,7 +6,7 @@ from .backends import BaseInferenceBackend, BackendCapabilities, GenerationResul
 class LlamaCppBackend(BaseInferenceBackend):
     backend_name = "llama_cpp"
 
-    def __init__(self, model_path: str, n_ctx: int = 2048, n_gpu_layers: int = -1, n_threads: Optional[int] = None, seed: int = 1337, verbose: bool = False, chat_format: Optional[str] = None, auto_load: bool = True, candidate_json_path: str = "experiments/template_candidates.json"):
+    def __init__(self, model_path: str, n_ctx: int = 2048, n_gpu_layers: int = -1, n_threads: Optional[int] = None, seed: int = 1337, verbose: bool = False, chat_format: Optional[str] = None, auto_load: bool = True, candidate_json_path: str = "experiments/template_candidates.json", generation_mode: str = "low-level"):
         self.model_path = model_path
         self.n_ctx = n_ctx
         self.n_gpu_layers = n_gpu_layers
@@ -15,6 +15,9 @@ class LlamaCppBackend(BaseInferenceBackend):
         self.verbose = verbose
         self.chat_format = chat_format
         self.candidate_json_path = candidate_json_path
+        if generation_mode not in {"low-level", "high-level"}:
+            raise ValueError(f"Unknown generation_mode: {generation_mode}")
+        self.generation_mode = generation_mode
         
         self.llm = None
         self.sessions: Dict[str, Dict[str, Any]] = {}
@@ -39,9 +42,9 @@ class LlamaCppBackend(BaseInferenceBackend):
             supports_snapshot_restore=True,
             supports_token_logprobs=False,
             backend_family="llama_cpp",
-            prefix_cache_mode="lowlevel-state",
-            state_restore_status="supported",
-            template_verify_status="supported",
+            prefix_cache_mode="highlevel-concat" if self.generation_mode == "high-level" else "lowlevel-state",
+            state_restore_status="unsupported" if self.generation_mode == "high-level" else "supported",
+            template_verify_status="unsupported" if self.generation_mode == "high-level" else "supported",
             tested_models=["Qwen3.6-35B-A3B-Claude-4.7-Opus-abliterated-ggml-model-Q4_K.gguf"],
             limitations=[
                 "llama-cpp-python create_completion forces full state reset for recurrent models on branch, so we use low-level eval/sample.",
@@ -234,6 +237,55 @@ class LlamaCppBackend(BaseInferenceBackend):
             full_prompt = session_state["prefix_text"] + prompt_or_suffix
             state = session_state["state"]
             
+        if self.generation_mode == "high-level":
+            start_time = time.perf_counter()
+            try:
+                # high-level llm API tokenizes and evaluates all tokens, so we use full_prompt.
+                # temperature 0.0 forces greedy decoding.
+                res = self.llm(full_prompt, max_tokens=max_tokens, temperature=temperature or 0.0, echo=False)
+                
+                text = res["choices"][0]["text"]
+                elapsed_sec = time.perf_counter() - start_time
+                
+                # Approximate token usage since the high-level API might not give exact IDs if not requested
+                prompt_tokens = res["usage"]["prompt_tokens"]
+                completion_tokens = res["usage"]["completion_tokens"]
+                # We return empty token_ids list to signify high-level output.
+                out_tokens = []
+                
+                return GenerationResult(
+                    ok=True,
+                    text=text,
+                    token_ids=out_tokens,
+                    elapsed_sec=elapsed_sec,
+                    prompt_tokens=prompt_tokens,
+                    completion_tokens=completion_tokens,
+                    error=None,
+                    backend=self.backend_name,
+                    metadata={
+                        "finish_reason": res["choices"][0].get("finish_reason", "stop"),
+                        "temperature": temperature,
+                        "n_ctx": self.n_ctx,
+                        "n_gpu_layers": self.n_gpu_layers,
+                        "session_turn_count": session_turn_count,
+                        "prefix_cache_mode": "highlevel-concat",
+                        "template_verify_enabled": False,
+                        "snapshot_restore_enabled": False,
+                        "suffix_prefill_sec": 0.0,
+                        "decode_sec": elapsed_sec,
+                        "accepted": 0,
+                        "drafted": 0,
+                        "rejected": 0,
+                        "sample_count": 0,
+                        "candidate_name": None,
+                        "fallback_used": False,
+                        "generation_mode": "high-level"
+                    }
+                )
+            except Exception as e:
+                elapsed_sec = time.perf_counter() - start_time
+                return GenerationResult(False, "", [], elapsed_sec, None, None, str(e), self.backend_name, {})
+                
         start_time = time.perf_counter()
         
         try:

@@ -61,11 +61,14 @@ def main():
     # GGUF Specific
     parser.add_argument("--model-type", type=str, default=None, help="Preset model type for GGUF candidates (e.g. 'qwen')")
     parser.add_argument("--candidate-json", type=str, default=None, help="Explicit path to candidate JSON file")
+    parser.add_argument("--generation-mode", type=str, choices=["low-level", "high-level"], default="low-level", help="Generation mode for GGUF backend (default: low-level)")
     
     args = parser.parse_args()
     
     try:
         candidate_json_path = resolve_candidate_json(args.backend, args.model_type, args.candidate_json)
+        if args.backend == "mlx" and args.generation_mode != "low-level":
+            raise ValueError("Error: --generation-mode cannot be specified with backend='mlx'")
     except ValueError as e:
         print(e, file=sys.stderr)
         sys.exit(2)
@@ -111,7 +114,12 @@ def main():
             if args.backend == "mlx":
                 api = SessionCacheAPI.load(model_path=args.model, backend="mlx")
             else:
-                api = SessionCacheAPI.load(model_path=args.model, backend="llama_cpp", candidate_json_path=candidate_json_path)
+                api = SessionCacheAPI.load(
+                    model_path=args.model,
+                    backend="llama_cpp",
+                    candidate_json_path=candidate_json_path,
+                    generation_mode=args.generation_mode
+                )
             
             # Create Session
             create_res = api.create_session(args.session_id, prefix_text)
