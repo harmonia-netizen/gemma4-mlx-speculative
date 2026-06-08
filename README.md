@@ -114,7 +114,7 @@ curl http://localhost:8000/v1/chat/completions \
     "max_tokens": 16
   }'
 ```
-*Note: Streaming is not implemented yet. However, if `stream: true` is requested, the server will process it as a non-streaming fallback and return a normal JSON response with the `X-LSR-Warning: stream=true is not supported; returned non-streaming response` header. For GGUF backends, `LSR_MODEL_TYPE` or `LSR_CANDIDATE_JSON` must be specified.*
+*Note: Streaming is not implemented yet. However, if `stream: true` is requested, the server will process it as a non-streaming fallback and return a normal JSON response with the `X-LSR-Warning: stream=true is not supported; returned non-streaming response` header. For GGUF backends, `LSR_MODEL_TYPE` or `LSR_CANDIDATE_JSON` must be specified. Some GGUF models can use `--generation-mode high-level` for quality-first fallback when low-level speculative generation is not compatible.*
 
 ## Quick Start & Verification
 
