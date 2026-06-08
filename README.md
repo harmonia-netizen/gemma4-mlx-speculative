@@ -91,11 +91,16 @@ LSR_BACKEND=llama_cpp LSR_MODEL="/path/to/model.gguf" LSR_MODEL_TYPE="qwen" pyth
 ```
 
 **Smoke Test (Optional):**
-You can use the built-in smoke test script to verify that the server endpoints (`/v1/models` and `/v1/chat/completions`) work correctly with your configured model.
-If `LSR_MODEL` is not set, the script will simply skip testing and exit.
+You can use the built-in smoke test scripts to verify that the server endpoints (`/v1/models` and `/v1/chat/completions`) work correctly with your configured model.
+If `LSR_MODEL` is not set, the scripts will simply skip testing and exit.
 ```bash
+# HTTP Smoke Test
 PYTHONPATH=. LSR_BACKEND=gguf LSR_MODEL="$HOME/Documents/model.gguf" LSR_MODEL_TYPE=qwen \
   .venv/bin/python experiments/smoke_openai_api.py
+
+# OpenAI Python SDK Smoke Test (Requires `openai` package)
+PYTHONPATH=. LSR_BACKEND=gguf LSR_MODEL="$HOME/Documents/model.gguf" LSR_MODEL_TYPE=qwen \
+  .venv/bin/python experiments/smoke_openai_sdk.py
 ```
 
 **cURL Example:**
@@ -113,12 +118,18 @@ curl http://localhost:8000/v1/chat/completions \
 ## Quick Start & Verification
 
 
-**1. Run full completion checks and tests:**
+**1. Run lightweight completion checks and tests:**
 ```bash
 python experiments/run_completion_checks.py
 ```
 
-**2. Run the Template Draft & Session Cache benchmark (MLX):**
+**2. Run full model-based verification checks:**
+```bash
+python experiments/run_model_checks.py
+```
+*Note: `run_model_checks.py` requires actual models. It may trigger large HF Hub downloads (e.g., Gemma 4 26b 8-bit) or load large local GGUF models.*
+
+**3. Run the Template Draft & Session Cache benchmark (MLX):**
 ```bash
 python experiments/benchmark_template_draft_runtime.py \
   --repeat-lines 500 \
@@ -128,7 +139,7 @@ python experiments/benchmark_template_draft_runtime.py \
   --template-min-tokens 1
 ```
 
-**3. Run the memory stats benchmark:**
+**4. Run the memory stats benchmark:**
 ```bash
 python experiments/benchmark_memory_stats.py
 ```
