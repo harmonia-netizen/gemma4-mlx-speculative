@@ -86,6 +86,42 @@ def format_messages_to_prompt(messages: List[ChatMessage]) -> str:
     prompt += "Assistant:"
     return prompt
 
+def split_messages_for_session(messages: List[ChatMessage]) -> tuple[str, str]:
+    """
+    Splits the chat messages into a reusable prefix and the latest suffix.
+    The prefix contains all messages except the last one.
+    The suffix contains the last message, and ends with "Assistant:".
+    If there is only 1 message, prefix is empty.
+    """
+    if not messages:
+        raise ValueError("messages list cannot be empty")
+        
+    prefix_prompt = ""
+    suffix_prompt = ""
+    
+    # Prefix: All messages except the last one
+    for msg in messages[:-1]:
+        if msg.role == "system":
+            prefix_prompt += f"System: {msg.content}\n\n"
+        elif msg.role == "user":
+            prefix_prompt += f"User: {msg.content}\n\n"
+        elif msg.role == "assistant":
+            prefix_prompt += f"Assistant: {msg.content}\n\n"
+            
+    # Suffix: The last message
+    last_msg = messages[-1]
+    if last_msg.role == "system":
+        suffix_prompt += f"System: {last_msg.content}\n\n"
+    elif last_msg.role == "user":
+        suffix_prompt += f"User: {last_msg.content}\n\n"
+    elif last_msg.role == "assistant":
+        suffix_prompt += f"Assistant: {last_msg.content}\n\n"
+        
+    suffix_prompt += "Assistant:"
+    
+    return prefix_prompt, suffix_prompt
+
+
 # --- App Factory ---
 
 def create_app(api: Optional[SessionCacheAPI] = None) -> FastAPI:
@@ -135,13 +171,11 @@ def create_app(api: Optional[SessionCacheAPI] = None) -> FastAPI:
         if request.stream:
             response.headers["X-LSR-Warning"] = "stream=true is not supported; returned non-streaming response"
             
-        # 1. Convert messages to prompt string
-        # Typically the system prompt or long history goes into the prefix
-        # For simplicity in this early version, we put everything into the suffix
-        # or we could put everything except the last user message into the prefix.
-        # Here we just treat the entire conversation up to now as suffix to `generate`.
-        # Real applications should separate static system prompts into prefix.
-        prompt = format_messages_to_prompt(request.messages)
+        # 1. Split messages into prefix and suffix
+        try:
+            prefix_text, suffix_text = split_messages_for_session(request.messages)
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
         
         # 2. Get API and prepare session
         try:
@@ -151,16 +185,16 @@ def create_app(api: Optional[SessionCacheAPI] = None) -> FastAPI:
             
         session_id = f"chat-{uuid.uuid4()}"
         
-        # Create session with empty prefix for now (relies on caching suffix if it repeats)
-        create_res = api_instance.create_session(session_id, prefix_text="")
+        # Create session with the prefix
+        create_res = api_instance.create_session(session_id, prefix_text=prefix_text)
         if not create_res.get("ok"):
             api_instance.clear_session(session_id)
             raise HTTPException(status_code=500, detail=f"Failed to create session: {create_res.get('error')}")
             
-        # 3. Generate
+        # 3. Generate using the suffix
         gen_res = api_instance.generate(
             session_id=session_id,
-            suffix_text=prompt,
+            suffix_text=suffix_text,
             max_tokens=request.max_tokens,
             draft_block_size=request.draft_block_size,
             template_min_tokens=request.template_min_tokens,

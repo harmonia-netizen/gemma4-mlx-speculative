@@ -80,6 +80,7 @@ python -m local_speculative_runtime.cli \
 ## OpenAI-Compatible API
 
 The runtime includes an experimental OpenAI-compatible API server. Currently, it supports `/v1/models` and non-streaming `/v1/chat/completions`.
+Internally, chat messages are split into a reusable prefix (system prompt and history) and a latest-turn suffix to maximize the benefits of `SessionCacheAPI`'s prefix reuse.
 
 **Start the Server:**
 ```bash
