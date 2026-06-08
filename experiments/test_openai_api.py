@@ -1,5 +1,6 @@
 import unittest
-from unittest.mock import MagicMock
+import os
+from unittest.mock import MagicMock, patch
 from fastapi.testclient import TestClient
 
 from local_speculative_runtime.openai_api import create_app, format_messages_to_prompt, split_messages_for_session, ChatMessage
@@ -145,6 +146,51 @@ class TestOpenAIAPI(unittest.TestCase):
         response = self.client.post("/v1/chat/completions", json=payload)
         self.assertEqual(response.status_code, 400)
         self.assertIn("messages list cannot be empty", response.json()["detail"])
+
+    @patch.dict(os.environ, {
+        "LSR_BACKEND": "llama_cpp",
+        "LSR_MODEL": "dummy",
+        "LSR_MODEL_TYPE": "qwen",
+        "LSR_GENERATION_MODE": "high-level"
+    }, clear=True)
+    @patch('local_speculative_runtime.openai_api.SessionCacheAPI.load')
+    def test_generation_mode_llama_cpp(self, mock_load):
+        from local_speculative_runtime.openai_api import create_app
+        from fastapi.testclient import TestClient
+        
+        # Create a new app instance so it initializes with the mocked env vars
+        test_app = create_app(api=None)
+        client = TestClient(test_app)
+        
+        # Trigger initialization by hitting an endpoint that calls get_api()
+        try:
+            client.post("/v1/chat/completions", json={"model": "dummy", "messages": [{"role": "user", "content": "hi"}]})
+        except Exception:
+            pass
+        
+        mock_load.assert_called_once_with(
+            model_path="dummy",
+            backend="llama_cpp",
+            candidate_json_path="experiments/template_candidates_gguf_qwen.json",
+            generation_mode="high-level"
+        )
+
+    @patch.dict(os.environ, {
+        "LSR_BACKEND": "mlx",
+        "LSR_MODEL": "dummy",
+        "LSR_GENERATION_MODE": "high-level"
+    }, clear=True)
+    def test_generation_mode_mlx_fails(self):
+        from local_speculative_runtime.openai_api import create_app
+        from fastapi.testclient import TestClient
+        
+        test_app = create_app(api=None)
+        client = TestClient(test_app)
+        
+        # Should return 500 due to RuntimeError during initialization
+        response = client.post("/v1/chat/completions", json={"model": "dummy", "messages": [{"role": "user", "content": "hi"}]})
+        self.assertEqual(response.status_code, 500)
+        self.assertIn("LSR_GENERATION_MODE=high-level cannot be specified with backend='mlx'", response.json()["detail"])
 
 if __name__ == "__main__":
     unittest.main()

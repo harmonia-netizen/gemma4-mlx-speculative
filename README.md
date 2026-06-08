@@ -114,7 +114,14 @@ curl http://localhost:8000/v1/chat/completions \
     "max_tokens": 16
   }'
 ```
-*Note: Streaming is not implemented yet. However, if `stream: true` is requested, the server will process it as a non-streaming fallback and return a normal JSON response with the `X-LSR-Warning: stream=true is not supported; returned non-streaming response` header. For GGUF backends, `LSR_MODEL_TYPE` or `LSR_CANDIDATE_JSON` must be specified. Some GGUF models can use `--generation-mode high-level` for quality-first fallback when low-level speculative generation is not compatible.*
+*Note: Streaming is not implemented yet. However, if `stream: true` is requested, the server will process it as a non-streaming fallback and return a normal JSON response with the `X-LSR-Warning: stream=true is not supported; returned non-streaming response` header. For GGUF backends, `LSR_MODEL_TYPE` or `LSR_CANDIDATE_JSON` must be specified.*
+
+**Gemma GGUF Fallback:**
+Gemma GGUFなど low-level speculative generation が合わないモデルでは `LSR_GENERATION_MODE=high-level` を環境変数として指定するか、CLI で `--generation-mode high-level` を使います。
+```bash
+PYTHONPATH=. LSR_BACKEND=gguf LSR_MODEL="$HOME/Documents/gemma-4-31B_q4_0-it.gguf" LSR_CANDIDATE_JSON=experiments/template_candidates.json LSR_GENERATION_MODE=high-level \
+  .venv/bin/python -m uvicorn local_speculative_runtime.openai_api:app --host 127.0.0.1 --port 8000
+```
 
 ## Quick Start & Verification
 

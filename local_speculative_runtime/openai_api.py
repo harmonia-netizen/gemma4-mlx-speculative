@@ -142,13 +142,25 @@ def create_app(api: Optional[SessionCacheAPI] = None) -> FastAPI:
             
             candidate_json = os.environ.get("LSR_CANDIDATE_JSON")
             model_type = os.environ.get("LSR_MODEL_TYPE")
+            generation_mode = os.environ.get("LSR_GENERATION_MODE", "low-level")
+            
+            if generation_mode not in ["low-level", "high-level"]:
+                raise RuntimeError(f"LSR_GENERATION_MODE must be 'low-level' or 'high-level', got {generation_mode}")
+            
+            if backend == "mlx" and generation_mode == "high-level":
+                raise RuntimeError("LSR_GENERATION_MODE=high-level cannot be specified with backend='mlx'")
             
             if backend in ["llama_cpp", "gguf"]:
                 if model_type == "qwen" and not candidate_json:
                     candidate_json = "experiments/template_candidates_gguf_qwen.json"
                 elif not candidate_json:
                     raise RuntimeError("LSR_CANDIDATE_JSON or LSR_MODEL_TYPE=qwen is required for GGUF")
-                app.state.api = SessionCacheAPI.load(model_path=model, backend=backend, candidate_json_path=candidate_json)
+                app.state.api = SessionCacheAPI.load(
+                    model_path=model,
+                    backend=backend,
+                    candidate_json_path=candidate_json,
+                    generation_mode=generation_mode
+                )
             else:
                 app.state.api = SessionCacheAPI.load(model_path=model, backend=backend)
                 
