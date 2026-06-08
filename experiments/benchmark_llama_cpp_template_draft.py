@@ -83,7 +83,7 @@ def main():
         n_ctx=args.n_ctx,
         n_gpu_layers=args.n_gpu_layers,
         verbose=False,
-        candidate_json_path="experiments/template_candidates_gguf_qwen.json"
+        candidate_json_path=args.candidate_json
     )
     # Reinitialize to override logits_all
     backend.llm = llama_cpp.Llama(
@@ -94,12 +94,24 @@ def main():
         logits_all=True
     )
 
+    is_gemma = False
+    if backend.llm:
+        model_type = str(backend.llm.metadata.get("tokenizer.ggml.model", "")).lower()
+        if "gemma" in model_type:
+            is_gemma = True
+
     prefix_str = generate_prefix(args.repeat_lines)
-    formatted_prefix = "<|im_start|>user\n" + prefix_str
+    
+    if is_gemma:
+        formatted_prefix = f"System: {prefix_str}\n\n"
+        def format_suffix(text): return f"User: \n{text}\n\nAssistant:"
+    else:
+        formatted_prefix = "<|im_start|>user\n" + prefix_str
+        def format_suffix(text): return "\n" + text + "<|im_end|>\n<|im_start|>assistant\n"
     
     if not args.json:
         print(f"repeat_lines: {args.repeat_lines}")
-        dummy_prompt = formatted_prefix + "\n" + "<|im_end|>\n<|im_start|>assistant\n"
+        dummy_prompt = formatted_prefix + format_suffix("")
         print(f"prefix_tokens: {len(backend.tokenize(dummy_prompt))}")
 
     all_results = []
@@ -118,7 +130,7 @@ def main():
                     print(f"  case {i} ({c['name']}):", end=" ", flush=True)
                 
                 # Without session
-                full_prompt = formatted_prefix + "\n" + c["text"] + "<|im_end|>\n<|im_start|>assistant\n"
+                full_prompt = formatted_prefix + format_suffix(c["text"])
                 res = backend.generate(None, full_prompt, max_tokens=args.max_tokens, template_min_tokens=0, draft_block_size=0)
                 baseline_results.append(res)
                 if not args.json:
@@ -134,7 +146,7 @@ def main():
                 if not args.json:
                     print(f"  case {i} ({c['name']}):", end=" ", flush=True)
                 
-                suffix_text = "\n" + c["text"] + "<|im_end|>\n<|im_start|>assistant\n"
+                suffix_text = format_suffix(c["text"])
                 res = backend.generate("sess_b", suffix_text, max_tokens=args.max_tokens, template_min_tokens=0, draft_block_size=0)
                 reuse_greedy_results.append(res)
                 if not args.json:
@@ -154,7 +166,7 @@ def main():
                 if not args.json:
                     print(f"  case {i} ({c['name']}):", end=" ", flush=True)
                 
-                suffix_text = "\n" + c["text"] + "<|im_end|>\n<|im_start|>assistant\n"
+                suffix_text = format_suffix(c["text"])
                 res = backend.generate(
                     "sess_c", 
                     suffix_text, 

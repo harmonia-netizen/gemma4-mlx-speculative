@@ -1,0 +1,214 @@
+[
+  {
+    "name": "exact_pytest_plan",
+    "required_keywords": [
+      "pytest",
+      "git diff",
+      "git status",
+      "3行"
+    ],
+    "any_keywords": [
+      "確認手順",
+      "bash",
+      "tb=short"
+    ],
+    "text": "```bash\ngit status --short\npytest --tb=short\ngit diff\n```",
+    "confidence": 0.98,
+    "min_tokens": 15,
+    "tags": [
+      "exact",
+      "bash",
+      "pytest"
+    ]
+  },
+  {
+    "name": "short_pytest_command",
+    "required_keywords": [],
+    "any_keywords": [
+      "pytestを実行してください",
+      "テストを実行",
+      "pytest -q"
+    ],
+    "score_threshold": 1.0,
+    "text": "```bash\npytest -q\n```",
+    "confidence": 0.75,
+    "min_tokens": 5,
+    "tags": [
+      "short",
+      "bash",
+      "pytest"
+    ]
+  },
+  {
+    "name": "git_status_short",
+    "required_keywords": [],
+    "any_keywords": [
+      "git status",
+      "status --short",
+      "作業ツリー",
+      "状態確認"
+    ],
+    "negative_keywords": [
+      "commit",
+      "push",
+      "reset",
+      "clean",
+      "rm"
+    ],
+    "score_threshold": 1.0,
+    "text": "```bash\ngit status --short\n```",
+    "confidence": 0.85,
+    "min_tokens": 5,
+    "tags": [
+      "short",
+      "bash",
+      "git"
+    ]
+  },
+  {
+    "name": "git_diff_stat",
+    "required_keywords": [],
+    "any_keywords": [
+      "git diff",
+      "diff stat",
+      "差分",
+      "変更量"
+    ],
+    "negative_keywords": [
+      "apply",
+      "patch",
+      "reset",
+      "clean",
+      "commit"
+    ],
+    "score_threshold": 1.0,
+    "text": "```bash\ngit diff --stat\n```",
+    "confidence": 0.85,
+    "min_tokens": 5,
+    "tags": [
+      "short",
+      "bash",
+      "git"
+    ]
+  },
+  {
+    "name": "git_add_status_commit_plan",
+    "required_keywords": [
+      "変更をコミットしたい",
+      "git add",
+      "git commit"
+    ],
+    "text": "```bash\ngit add .\ngit status --short\ngit commit -m \"Update\"\n```",
+    "confidence": 0.5,
+    "min_tokens": 10,
+    "tags": [
+      "exact",
+      "bash",
+      "git"
+    ]
+  },
+  {
+    "name": "safe_runtime_check_plan",
+    "required_keywords": [],
+    "required_any_groups": [
+      [
+        "安全",
+        "safe"
+      ],
+      [
+        "確認",
+        "check",
+        "status",
+        "diff",
+        "compile",
+        "ls",
+        "pwd"
+      ]
+    ],
+    "any_keywords": [
+      "安全",
+      "safe",
+      "確認",
+      "check",
+      "status",
+      "diff",
+      "compile"
+    ],
+    "negative_keywords": [
+      "commit",
+      "push",
+      "reset",
+      "clean",
+      "rm",
+      "delete"
+    ],
+    "score_threshold": 2.0,
+    "text": "```bash\ngit status --short\ngit diff --stat\npython -m py_compile experiments/template_draft_runtime.py experiments/session_cache_runtime.py experiments/session_cache_api.py\n```",
+    "confidence": 0.9,
+    "min_tokens": 8,
+    "tags": [
+      "exact",
+      "bash",
+      "sys"
+    ]
+  },
+  {
+    "name": "py_compile_runtime",
+    "required_keywords": [],
+    "any_keywords": [
+      "py_compile",
+      "compile",
+      "構文",
+      "文法",
+      "python"
+    ],
+    "negative_keywords": [
+      "delete",
+      "remove",
+      "rm"
+    ],
+    "score_threshold": 2.0,
+    "text": "```bash\npython -m py_compile experiments/template_draft_runtime.py experiments/session_cache_runtime.py experiments/session_cache_api.py\n```",
+    "confidence": 0.86,
+    "min_tokens": 6,
+    "tags": [
+      "exact",
+      "bash",
+      "python"
+    ]
+  },
+  {
+    "name": "run_session_tests",
+    "required_keywords": [],
+    "any_keywords": [
+      "test_prefix_cache_manager",
+      "test_candidate_registry",
+      "session test",
+      "unit test",
+      "テスト"
+    ],
+    "score_threshold": 1.0,
+    "text": "```bash\npython experiments/test_prefix_cache_manager.py\npython experiments/test_candidate_registry.py\npython experiments/test_session_cache_api.py\n```",
+    "confidence": 0.88,
+    "min_tokens": 10,
+    "tags": [
+      "exact",
+      "bash",
+      "pytest"
+    ]
+  },
+  {
+    "name": "low_confidence_pytest",
+    "required_keywords": [
+      "たぶんpytest",
+      "自信ない"
+    ],
+    "text": "```bash\npytest\n```",
+    "confidence": 0.5,
+    "min_tokens": 1,
+    "tags": [
+      "low",
+      "pytest"
+    ]
+  }
+]
