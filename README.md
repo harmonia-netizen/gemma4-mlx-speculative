@@ -147,7 +147,17 @@ python experiments/benchmark_template_draft_runtime.py \
   --template-min-tokens 1
 ```
 
-**4. Run the memory stats benchmark:**
+**4. Run the GGUF Template Draft benchmark:**
+```bash
+python experiments/benchmark_llama_cpp_template_draft.py \
+  --model "$HOME/Documents/model.gguf" \
+  --candidate-json experiments/template_candidates_gguf_qwen.json \
+  --draft-block-size 12 \
+  --template-min-tokens 3
+```
+*Note: Stable speedups have been verified on Gemma4 and Qwen GGUF. See [GGUF Backend Design](docs/gguf_backend_design.md) for details.*
+
+**5. Run the memory stats benchmark:**
 ```bash
 python experiments/benchmark_memory_stats.py
 ```
