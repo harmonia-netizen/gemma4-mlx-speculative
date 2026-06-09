@@ -77,6 +77,8 @@ python -m local_speculative_runtime.cli \
 ```
 *Note: For GGUF, either `--model-type` or `--candidate-json` is strictly required. The built-in preset is currently `qwen` only; other models require specifying their specific candidate rules via `--candidate-json`.*
 
+*Tip: For GGUF Template Draft, adding `--draft-block-size 12 --template-min-tokens 3` is recommended for stable speedups (see [GGUF Backend Design](docs/gguf_backend_design.md)).*
+
 ## OpenAI-Compatible API
 
 The runtime includes an experimental OpenAI-compatible API server. Currently, it supports `/v1/models` and non-streaming `/v1/chat/completions`.
@@ -115,6 +117,8 @@ curl http://localhost:8000/v1/chat/completions \
   }'
 ```
 *Note: Streaming is not implemented yet. However, if `stream: true` is requested, the server will process it as a non-streaming fallback and return a normal JSON response with the `X-LSR-Warning: stream=true is not supported; returned non-streaming response` header. For GGUF backends, `LSR_MODEL_TYPE` or `LSR_CANDIDATE_JSON` must be specified.*
+
+*Tip: For GGUF Template Draft, passing `"draft_block_size": 12, "template_min_tokens": 3` in the JSON payload is recommended for stable speedups (see [GGUF Backend Design](docs/gguf_backend_design.md)).*
 
 **Gemma GGUF Fallback:**
 Gemma GGUFなど low-level speculative generation が合わないモデルでは `LSR_GENERATION_MODE=high-level` を環境変数として指定するか、CLI で `--generation-mode high-level` を使います。
