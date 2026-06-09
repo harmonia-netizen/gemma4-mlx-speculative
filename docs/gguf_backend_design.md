@@ -47,3 +47,22 @@ PYTHONPATH=. .venv/bin/python experiments/benchmark_llama_cpp_template_draft.py 
   --runs 1 \
   --json | python -c 'import sys,json; d=json.load(sys.stdin); r=d["runs"][0]; print("ok:", d["ok"], "| token_match:", d["token_match"], "| draft_enabled:", d["template_draft_enabled"], "| accepted:", r["C_accepted"], "| drafted:", r["C_drafted"], "| rejected:", r["C_rejected"], "| mismatch_match:", r["mismatch_token_match"], "| decode_speedup:", r["C_vs_B_decode_speedup"])'
 ```
+
+### Recommended Benchmark Settings
+For the measured Gemma4 and Qwen GGUF Template Draft benchmark cases, the following parameters are recommended for stable speedups:
+- `--draft-block-size 12`
+- `--template-min-tokens 3`
+
+**Note:** The previous default (`8` / `1`) can produce higher single-run averages, but experiences significant downside volatility (lower minimum speedups) on Gemma4. The `12` / `3` configuration is far more stable.
+
+#### Gemma4 GGUF Verification:
+- **candidate-json:** `experiments/template_candidates_gguf_gemma4.json`
+- **accepted/drafted:** 21/39
+- **rejected:** 2
+- **min decode speedup:** 2.109x
+
+#### Qwen GGUF Verification:
+- **candidate-json:** `experiments/template_candidates_gguf_qwen.json`
+- **accepted/drafted:** 17/38
+- **rejected:** 2
+- **decode speedup range:** 2.141x〜2.165x
